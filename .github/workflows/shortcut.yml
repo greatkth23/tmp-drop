@@ -1,6 +1,10 @@
-name: Build signed iPhone shortcut
+name: Validate iPhone shortcut source
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/build-shortcut.py
+      - .github/workflows/shortcut.yml
   push:
     branches: [main]
     paths:
@@ -9,7 +13,7 @@ on:
 permissions:
   contents: read
 jobs:
-  sign:
+  validate:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
@@ -19,15 +23,13 @@ jobs:
           python-version: '3.12'
       - name: Build unsigned credential-free template
         run: python scripts/build-shortcut.py
-      - name: Sign with Apple Shortcuts
+      - name: Validate native plist and keep signing status explicit
         run: |
           plutil -lint .wrangler/shortcuts/Temporary-Drop-unsigned.shortcut
-          shortcuts sign --mode anyone --input .wrangler/shortcuts/Temporary-Drop-unsigned.shortcut --output .wrangler/shortcuts/Temporary-Drop.shortcut
-          test -s .wrangler/shortcuts/Temporary-Drop.shortcut
-          shasum -a 256 .wrangler/shortcuts/Temporary-Drop.shortcut > .wrangler/shortcuts/SHA256SUMS
+          echo 'Unsigned authoring source only. Apple signing requires an iCloud-authenticated Mac; iPhone testing remains pending.'
       - uses: actions/upload-artifact@v4
         with:
-          name: temporary-drop-shortcut
+          name: temporary-drop-shortcut-source-unsigned
           path: .wrangler/shortcuts/
           if-no-files-found: error
           retention-days: 14

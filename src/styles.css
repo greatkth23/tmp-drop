@@ -843,6 +843,31 @@ dialog p {
     font-size: 10px;
   }
 }
+.shortcut-guide {
+  margin-top: 24px;
+}
+.shortcut-guide li {
+  margin-bottom: 18px;
+}
+.shortcut-guide li::marker {
+  font-weight: 600;
+}
+.shortcut-example {
+  margin: 16px 0;
+}
+.shortcut-example pre {
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.shortcut-example .section-head {
+  flex-wrap: wrap;
+  gap: 8px;
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

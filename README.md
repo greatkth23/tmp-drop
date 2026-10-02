@@ -92,6 +92,6 @@ npm run smoke:local
 
 R2에 part가 저장되었는데 응답 또는 D1 기록이 불확실하면 ListParts로 수신 여부·크기·ETag를 확인해 복구합니다. 원격 S3 키가 없는 로컬에서는 불확실한 part를 조회할 수 없으며, 확인될 때까지 대기하거나 취소·만료 처리합니다. R2가 아직 확인하지 않은 part를 재전송하는 복구는 제공하지 않습니다. DB lease는 R2 호출을 중단시키는 장치가 아닙니다.
 
-브라우저 새로고침·재시작 후 업로드 복구, iOS 백그라운드 전송, 실제 `.shortcut` 설치 파일은 제공하지 않습니다. iPhone 경로는 API와 안내를 구현했으며 실기기 시험이 필요합니다. Cloudflare limits·비용, 1/5/16/32 GiB 전송, 대규모 정리·복원 검증은 출시 전 남은 작업입니다.
+브라우저 새로고침·재시작 후 업로드 복구, iOS 백그라운드 전송, 실제 `.shortcut` 설치 파일은 제공하지 않습니다. iPhone 경로는 API, `/shortcut`의 직접 제작 안내, 토큰 복사 확인, 개인 비밀이 없는 제작용 소스를 구현했습니다. 대상은 iOS 27.0.1이며 실기기 시험이 필요합니다. GitHub macOS에서 공식 서명을 시험했지만 iCloud 로그인 부재로 설치 파일을 생성하지 못했습니다. Cloudflare limits·비용, 1/5/16/32 GiB 전송, 대규모 정리·복원 검증은 출시 전 남은 작업입니다.
 
 staging의 모든 페이지·API는 별도 `X-Staging-Token`을 요구하므로 직접 주소를 열면 404가 나옵니다. 운영은 별도 Worker `drop`으로 배포했습니다. 증거와 남은 항목은 `docs/STAGING_VALIDATION.md`, `docs/PRODUCTION_VALIDATION.md`, `docs/IMPLEMENTATION_STATUS.md`를 확인하세요.

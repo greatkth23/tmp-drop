@@ -5,14 +5,22 @@ import { POLICY } from '../shared/contracts';
 import { api, authStatus, mutate, message, ApiFailure } from './api';
 import { engine } from './uploader';
 import type { QueueView } from './uploader';
-type Page = 'download' | 'upload' | 'devices';
-const routes: Record<Page, string> = { download: '/', upload: '/upload', devices: '/devices' };
+import { ShortcutsGuide } from './ShortcutsGuide';
+type Page = 'download' | 'upload' | 'devices' | 'shortcut';
+const routes: Record<Page, string> = {
+  download: '/',
+  upload: '/upload',
+  devices: '/devices',
+  shortcut: '/shortcut',
+};
 const pageFromUrl = (): Page =>
-  location.pathname === '/devices'
-    ? 'devices'
-    : location.pathname === '/upload'
-      ? 'upload'
-      : 'download';
+  location.pathname === '/shortcut'
+    ? 'shortcut'
+    : location.pathname === '/devices'
+      ? 'devices'
+      : location.pathname === '/upload'
+        ? 'upload'
+        : 'download';
 function bytes(n: number) {
   if (n >= 1024 ** 3) return (n / 1024 ** 3).toFixed(1) + ' GiB';
   if (n >= 1024 ** 2) return (n / 1024 ** 2).toFixed(1) + ' MiB';
@@ -345,6 +353,8 @@ export function App() {
             />
           ) : page === 'download' ? (
             <DownloadPage auth={auth} now={serverNow} refresh={refresh} navigate={navigate} />
+          ) : page === 'shortcut' ? (
+            <ShortcutsGuide />
           ) : (
             <DevicesPage auth={auth} refresh={refresh} />
           )}
@@ -1015,6 +1025,8 @@ function DevicesPage({
     [error, setError] = useState(''),
     [dialog, setDialog] = useState<'shortcut' | DeviceSummary | null>(null),
     [token, setToken] = useState(''),
+    [copied, setCopied] = useState(false),
+    [connecting, setConnecting] = useState(false),
     [name, setName] = useState('내 iPhone 단축어');
   const load = useCallback(async (grant?: string) => {
     try {
@@ -1043,8 +1055,10 @@ function DevicesPage({
       </section>
     );
   const close = () => {
+    if (connecting) return;
     setDialog(null);
     setToken('');
+    setCopied(false);
   };
   const create = async (grant?: string) => {
     try {
@@ -1070,6 +1084,7 @@ function DevicesPage({
         ]);
     } catch (e) {
       setError(message(e));
+      throw e;
     }
   };
   const revoke = async (grant?: string) => {
@@ -1103,6 +1118,10 @@ function DevicesPage({
         }
       />
       <ErrorText error={error} />
+      <p className="help">
+        <a href="/shortcut">iPhone 단축어 설정 안내</a> · 파일·사진의 공유 메뉴에서 업로드하는
+        방법을 확인하세요.
+      </p>
       <div className="section-head">
         <span>{devices?.length || 0}개 등록 기기</span>
       </div>
@@ -1163,12 +1182,23 @@ function DevicesPage({
                   제거하세요.
                 </p>
                 <textarea className="token" aria-label="단축어 기기 토큰" readOnly value={token} />
+                <p className="help">
+                  토큰은 업로드 전용입니다. 개인 단축어의 텍스트 액션에 붙여 넣으세요. iCloud
+                  동기화·백업에도 포함될 수 있습니다.
+                </p>
+                <a className="btn full" href="/shortcut" target="_blank" rel="noreferrer">
+                  새 창에서 설정 안내 보기
+                </a>
+                {copied && <p role="status">토큰을 복사했습니다.</p>}
                 <div className="dialog-actions">
                   <button
                     className="btn"
                     onClick={() => {
+                      setCopied(false);
+                      setError('');
                       void navigator.clipboard
                         .writeText(token)
+                        .then(() => setCopied(true))
                         .catch(() => setError('직접 토큰을 선택해 복사해 주세요.'));
                     }}
                   >
@@ -1186,7 +1216,7 @@ function DevicesPage({
                   <input value={name} onChange={(e) => setName(e.target.value)} maxLength={50} />
                 </label>
                 <p>이 토큰은 파일 업로드 전용입니다. 다른 사람에게 공유하지 마세요.</p>
-                <TotpForm intent="create_device" onSuccess={(g) => void create(g)} />
+                <TotpForm intent="create_device" onSuccess={create} onBusyChange={setConnecting} />
               </>
             )
           ) : (
