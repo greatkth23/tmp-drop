@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "origin": "https://drop.rmarkfcl.workers.dev",
+  "startedAt": "2026-10-02T16:46:50.828Z",
+  "checks": [
+    {
+      "name": "PIN alone cannot delete"
+    },
+    {
+      "name": "immediate deletion removes R2 object, hides list entry, invalidates previous signed URL and consumes grant",
+      "id": "e14f61c2-10eb-4207-8ad9-f796c1dd2c14"
+    },
+    {
+      "name": "D1 deletion state and quota verified",
+      "state": "DELETED",
+      "quotaBucket": "released",
+      "pendingJobs": 0,
+      "reservedBytes": 0,
+      "readyBytes": 69344822,
+      "expectedReadyBytes": 69344822
+    },
+    {
+      "name": "Chrome desktop and 390px mobile confirmation and cancellation verified",
+      "horizontalOverflow": false
+    }
+  ],
+  "finishedAt": "2026-10-02T16:47:06.525Z",
+  "ok": true,
+  "deploymentId": "baea299b-c77a-4ba9-9a4b-9c6a999c83b7"
+}

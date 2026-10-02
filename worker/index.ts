@@ -33,7 +33,7 @@ import {
   summary,
 } from './uploads';
 import { presign } from './storage';
-import { cleanup } from './cleanup';
+import { cleanup, deleteStoredFile } from './cleanup';
 import { reconcile } from './reconciliation';
 
 const app = new Hono<AppEnv>();
@@ -85,8 +85,8 @@ app.post('/api/auth/totp', async (c) => {
   const input = await json(c, totpSchema);
   if (input.intent === 'trust' && !input.deviceName)
     fail(400, 'DEVICE_NAME_REQUIRED', '기기 이름을 입력해 주세요.');
-  if (input.intent === 'revoke_device' && !input.targetId)
-    fail(400, 'TARGET_REQUIRED', '해제할 기기가 필요합니다.');
+  if (['revoke_device', 'delete_file'].includes(input.intent) && !input.targetId)
+    fail(400, 'TARGET_REQUIRED', '작업 대상이 필요합니다.');
   await consumeTotp(c, input.code);
   const token = randomToken(),
     id = crypto.randomUUID(),
@@ -283,6 +283,28 @@ app.get('/api/files', async (c) => {
         : null,
     serverNow: Date.now(),
   });
+});
+app.delete('/api/files/:id', async (c) => {
+  await requireBrowserMutation(c);
+  await downloadSession(c);
+  const id = c.req.param('id');
+  await grant(c, 'delete_file', id);
+  const file = await c.env.DB.prepare('SELECT * FROM files WHERE id=?').bind(id).first<FileRow>();
+  if (!file) fail(404, 'FILE_UNAVAILABLE', '파일을 찾을 수 없습니다.');
+  if (file.state === 'DELETED') return c.json({ state: 'DELETED' });
+  if (!['READY', 'EXPIRED', 'DELETING'].includes(file.state))
+    fail(409, 'FILE_NOT_READY', '완료된 파일만 삭제할 수 있습니다.');
+  const result = await deleteStoredFile(c, file);
+  if (result === 'busy')
+    fail(409, 'DELETE_IN_PROGRESS', '이미 삭제 중입니다. 잠시 후 목록을 새로고침해 주세요.');
+  if (result === 'failed')
+    fail(
+      503,
+      'DELETE_FAILED',
+      '파일을 목록에서 숨겼지만 저장소 정리가 지연되고 있습니다. 자동으로 다시 시도합니다.',
+    );
+  await audit(c, 'file_deleted', id);
+  return c.json({ state: 'DELETED' });
 });
 app.get('/api/files/:id/download', async (c) => {
   const d = (await downloadSession(c))!;

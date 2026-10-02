@@ -520,7 +520,7 @@ select {
 .table-head,
 .download-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 100px 155px 100px;
+  grid-template-columns: minmax(0, 1fr) 85px 145px 166px;
   gap: 18px;
   align-items: center;
 }
@@ -536,6 +536,11 @@ select {
 .download-row {
   padding: 22px 24px;
   border-top: 1px solid var(--line);
+}
+.download-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 .download-name {
   display: flex;
@@ -690,7 +695,7 @@ dialog p {
   }
   .table-head,
   .download-row {
-    grid-template-columns: minmax(0, 1fr) 85px 115px 90px;
+    grid-template-columns: minmax(0, 1fr) 65px 110px 166px;
     gap: 12px;
   }
 }
@@ -794,9 +799,10 @@ dialog p {
     padding-left: 51px;
     font-size: 11px;
   }
-  .download-row > .btn {
+  .download-actions {
     grid-column: 2;
     grid-row: 2/4;
+    flex-direction: column;
   }
   .device-row {
     padding: 18px 16px;

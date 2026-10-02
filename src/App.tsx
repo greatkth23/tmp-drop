@@ -102,10 +102,12 @@ function TotpForm({
   intent = 'upload',
   onSuccess,
   targetId,
+  onBusyChange,
 }: {
-  intent?: 'upload' | 'manage' | 'create_device' | 'revoke_device';
-  onSuccess: (grant?: string) => void;
+  intent?: 'upload' | 'manage' | 'create_device' | 'revoke_device' | 'delete_file';
+  onSuccess: (grant?: string) => void | Promise<void>;
   targetId?: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [code, setCode] = useState(''),
     [trust, setTrust] = useState(false),
@@ -115,6 +117,7 @@ function TotpForm({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    onBusyChange?.(true);
     setError('');
     try {
       const result = await mutate<{ grant?: string }>('/api/auth/totp', {
@@ -124,11 +127,12 @@ function TotpForm({
         ...(targetId ? { targetId } : {}),
       });
       setCode('');
-      onSuccess(result.grant);
+      await onSuccess(result.grant);
     } catch (e) {
       setError(message(e));
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
   return (
@@ -177,8 +181,11 @@ function TotpForm({
           : '이 작업을 위해 새 Authenticator 코드가 필요합니다.'}
       </p>
       <ErrorText error={error} />
-      <button className="btn primary full" disabled={busy}>
-        {busy ? '인증 확인 중…' : '인증하고 계속 →'}
+      <button
+        className={'btn full ' + (intent === 'delete_file' ? 'danger' : 'primary')}
+        disabled={busy}
+      >
+        {busy ? '처리 중…' : intent === 'delete_file' ? '인증하고 영구 삭제' : '인증하고 계속 →'}
       </button>
     </form>
   );
@@ -721,6 +728,9 @@ function DownloadPage({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [files, setFiles] = useState<FileSummary[]>([]),
+    [deleting, setDeleting] = useState<FileSummary | null>(null),
+    [deleteBusy, setDeleteBusy] = useState(false),
+    [notice, setNotice] = useState(''),
     [cursor, setCursor] = useState<string | null>(null),
     [loaded, setLoaded] = useState(false);
   const unlocked =
@@ -846,6 +856,7 @@ function DownloadPage({
         </div>
       </div>
       <ErrorText error={error} />
+      {notice && <p role="status">{notice}</p>}
       <section className="panel file-table">
         {!loaded ? (
           <div className="empty" role="status">
@@ -886,19 +897,73 @@ function DownloadPage({
                   {left(f.expiresAt, now)}
                   <small>{new Date(f.expiresAt).toLocaleString()}</small>
                 </span>
-                <a
-                  className="btn small"
-                  href={`/api/files/${f.id}/download`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  ↓ 다운로드
-                </a>
+                <div className="download-actions">
+                  <a
+                    className="btn small"
+                    href={`/api/files/${f.id}/download`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    ↓ 다운로드
+                  </a>
+                  <button
+                    className="btn small danger"
+                    aria-label={`${f.filename} 삭제`}
+                    onClick={() => {
+                      setNotice('');
+                      setDeleting(f);
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
               </article>
             ))}
           </>
         )}
       </section>
+      {deleting && (
+        <Dialog
+          title="파일을 영구 삭제할까요?"
+          onClose={() => {
+            if (!deleteBusy) setDeleting(null);
+          }}
+        >
+          <p className="filename">{deleting.filename}</p>
+          <p>삭제하면 모든 기기에서 다운로드할 수 없으며 복구할 수 없습니다.</p>
+          <TotpForm
+            intent="delete_file"
+            targetId={deleting.id}
+            onBusyChange={setDeleteBusy}
+            onSuccess={async (grant) => {
+              setDeleteBusy(true);
+              try {
+                await mutate(`/api/files/${deleting.id}`, {}, 'DELETE', {
+                  'X-Admin-Grant': grant!,
+                });
+                setFiles((previous) => previous.filter((file) => file.id !== deleting.id));
+                setNotice(`${deleting.filename} 파일을 삭제했습니다.`);
+                setDeleting(null);
+                await load();
+              } catch (error) {
+                await refresh();
+                await load();
+                throw error;
+              } finally {
+                setDeleteBusy(false);
+              }
+            }}
+          />
+          <button
+            className="btn full"
+            style={{ marginTop: 12 }}
+            disabled={deleteBusy}
+            onClick={() => setDeleting(null)}
+          >
+            취소
+          </button>
+        </Dialog>
+      )}
       {cursor && (
         <button className="btn load-more" onClick={() => void load(cursor)}>
           더 보기

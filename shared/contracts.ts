@@ -34,6 +34,7 @@ export const totpSchema = z
       'manage',
       'create_device',
       'revoke_device',
+      'delete_file',
       'maintenance_report',
       'maintenance_quota',
       'maintenance_delete',

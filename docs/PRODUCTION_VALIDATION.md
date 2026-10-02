@@ -75,3 +75,11 @@ TOTP는 동일 코드를 재사용할 수 없고 5분에 5회까지 인증할 �
 타입·포맷·Workers 테스트 41개·UI 빌드·로컬 및 운영 dry-run을 통과했습니다. GitHub의 Validate application workflow는 push마다 같은 검사와 dry-run을 수행합니다.
 
 이 결과는 Chrome·64 MiB+1까지의 실제 개인 파일 전송 검증입니다. iPhone/Safari, 설치 가능한 `.shortcut`, 1/5/16/32 GiB, 장시간 회선 단절, D1 복원, 대규모 cron/orphan paging, 알림과 예산 설정은 남아 있습니다. 웹 32 GiB·단축어 5 GiB는 정책 상한이며 실측 최대 크기로 표시하지 않습니다.
+
+## 즉시 삭제 기능 검증 — 2026-10-03
+
+배포 `baea299b-c77a-4ba9-9a4b-9c6a999c83b7`. 완료된 파일 목록에 삭제 버튼을 추가했습니다. PIN으로 목록을 연 뒤 확인창에서 새 TOTP 코드를 입력하면 해당 파일에 묶인 1회 grant로 영구 삭제합니다. 삭제 중에는 다운로드를 차단하며 R2 final/staging 삭제가 끝난 뒤 용량을 반환합니다. 저장소 장애는 삭제 임대와 cron 재시도로 복구합니다.
+
+`npm run deploy:production`의 typecheck, format, 테스트 45개, build가 통과했습니다. 추가 테스트 4개는 대상별 TOTP grant, PIN 단독·다른 목적/대상·Origin/CSRF·잠긴 세션 거부, 즉시 final/staging 삭제·중복 용량 반환 방지·grant 재사용 차단, R2 장애 후 cron 복구를 검증합니다.
+
+운영에서는 별도로 올린 48바이트 `delete-test-disposable.txt`만 삭제했습니다. 목록에서 사라지고 Worker 다운로드, 삭제 전 signed URL, R2 HEAD가 모두 404였습니다. D1은 DELETED/released, 해당 파일의 정리 작업은 0건이며 용량 counter가 실제 ready ledger와 일치했습니다. Chrome 데스크톱 및 390px 모바일에서 버튼·확인창·취소 후 파일 유지와 가로 넘침 없음을 확인했습니다. 실제 삭제는 API로 검증했고 브라우저에서는 확인창과 취소를 검증했습니다. 상세 결과: `PRODUCTION_DELETE_RESULT.json`.

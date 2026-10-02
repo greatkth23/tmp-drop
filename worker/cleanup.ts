@@ -2,6 +2,57 @@ import type { AppContext, FileRow } from './types';
 import { POLICY } from '../shared/contracts';
 import { recoverFinalization } from './uploads';
 import { recoverFileParts, PART_LEASE_MS } from './recovery';
+// Share the lease and retry path between immediate deletion and scheduled cleanup.
+export async function deleteStoredFile(
+  c: AppContext,
+  file: FileRow,
+): Promise<'deleted' | 'busy' | 'failed'> {
+  const now = Date.now();
+  const leased = await c.env.DB.prepare(
+    `INSERT INTO maintenance_jobs(id,resource_id,type,run_after,lease_until) VALUES(?,?,'delete',?,?)
+    ON CONFLICT(resource_id) DO UPDATE SET lease_until=excluded.lease_until WHERE maintenance_jobs.lease_until IS NULL OR maintenance_jobs.lease_until<=? RETURNING id`,
+  )
+    .bind(crypto.randomUUID(), file.id, now, now + 300_000, now)
+    .first();
+  if (!leased) return 'busy';
+  try {
+    const claimed = await c.env.DB.prepare(
+      "UPDATE files SET state='DELETING' WHERE id=? AND state IN('READY','FAILED','CANCEL_REQUESTED','CANCELLED','EXPIRED','DELETING') RETURNING id",
+    )
+      .bind(file.id)
+      .first();
+    if (!claimed) {
+      await c.env.DB.prepare('DELETE FROM maintenance_jobs WHERE resource_id=?')
+        .bind(file.id)
+        .run();
+      return 'busy';
+    }
+    if (file.multipart_id) {
+      try {
+        await c.env.BUCKET.resumeMultipartUpload(file.final_key, file.multipart_id).abort();
+      } catch (error) {
+        if (!/NoSuchUpload|does not exist|not found/i.test(String(error))) throw error;
+      }
+    }
+    await c.env.BUCKET.delete(
+      file.staging_key ? [file.final_key, file.staging_key] : file.final_key,
+    );
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        "UPDATE files SET state='DELETED',deleted_at=?,quota_bucket='released' WHERE id=? AND state='DELETING'",
+      ).bind(Date.now(), file.id),
+      c.env.DB.prepare('DELETE FROM maintenance_jobs WHERE resource_id=?').bind(file.id),
+    ]);
+    return 'deleted';
+  } catch {
+    await c.env.DB.prepare(
+      "UPDATE maintenance_jobs SET attempts=attempts+1,run_after=?,lease_until=NULL,last_error_code='DELETE_FAILED' WHERE resource_id=?",
+    )
+      .bind(now + 900_000, file.id)
+      .run();
+    return 'failed';
+  }
+}
 export async function cleanup(
   c: AppContext,
 ): Promise<{ deleted: number; recovered: number; failed: number }> {
@@ -55,46 +106,11 @@ export async function cleanup(
       .all<FileRow>()
   ).results;
   for (const file of pending) {
-    const job = crypto.randomUUID();
-    const leased = await c.env.DB.prepare(
-      `INSERT INTO maintenance_jobs(id,resource_id,type,run_after,lease_until) VALUES(?,?,'delete',?,?)
-      ON CONFLICT(resource_id) DO UPDATE SET lease_until=excluded.lease_until WHERE maintenance_jobs.lease_until IS NULL OR maintenance_jobs.lease_until<=? RETURNING id`,
-    )
-      .bind(job, file.id, now, now + 300_000, now)
-      .first();
-    if (!leased) continue;
-    try {
-      await c.env.DB.prepare(
-        "UPDATE files SET state='DELETING' WHERE id=? AND state IN('FAILED','CANCEL_REQUESTED','CANCELLED','EXPIRED','DELETING')",
-      )
-        .bind(file.id)
-        .run();
-      if (file.multipart_id) {
-        try {
-          await c.env.BUCKET.resumeMultipartUpload(file.final_key, file.multipart_id).abort();
-        } catch (error) {
-          if (!/NoSuchUpload|does not exist|not found/i.test(String(error))) throw error;
-        }
-      }
-      await c.env.BUCKET.delete(
-        file.staging_key ? [file.final_key, file.staging_key] : file.final_key,
-      );
-      await c.env.DB.batch([
-        c.env.DB.prepare(
-          "UPDATE files SET state='DELETED',deleted_at=?,quota_bucket='released' WHERE id=? AND state='DELETING'",
-        ).bind(Date.now(), file.id),
-        c.env.DB.prepare('DELETE FROM maintenance_jobs WHERE resource_id=?').bind(file.id),
-      ]);
-      deleted++;
-    } catch {
-      failed++;
-      await c.env.DB.prepare(
-        "UPDATE maintenance_jobs SET attempts=attempts+1,run_after=?,lease_until=NULL,last_error_code='DELETE_FAILED' WHERE resource_id=?",
-      )
-        .bind(now + 900_000, file.id)
-        .run();
-    }
+    const result = await deleteStoredFile(c, file);
+    if (result === 'deleted') deleted++;
+    if (result === 'failed') failed++;
   }
+
   // Replayed presigned PUTs can recreate staging objects, so retain their names and sweep again.
   const staging = (
     await c.env.DB.prepare(

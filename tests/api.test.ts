@@ -943,3 +943,144 @@ describe('expiry, retries and maintenance', () => {
     expect((await b.request('/api/devices', 'GET', undefined, headers)).status).toBe(403);
   });
 });
+
+describe('immediate file deletion', () => {
+  async function readyFile(b: Browser) {
+    await b.login();
+    const u = await b.upload();
+    const headers = { Authorization: 'Upload ' + u.capability };
+    expect(
+      (
+        await b.request(
+          '/api/uploads/' + u.id + '/parts/1',
+          'PUT',
+          new Uint8Array([1, 2, 3]),
+          headers,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (await b.request('/api/uploads/' + u.id + '/complete', 'POST', {}, headers)).status,
+    ).toBe(200);
+    expect((await b.request('/api/download/unlock', 'POST', { pin: '4827' })).status).toBe(200);
+    await b.status();
+    return (await env.DB.prepare('SELECT * FROM files WHERE id=?').bind(u.id).first<FileRow>())!;
+  }
+  async function deletionGrant(id: string, purpose = 'delete_file') {
+    const token = crypto.randomUUID();
+    await env.DB.prepare(
+      'INSERT INTO admin_grants(id,token_hash,purpose,target_id,expires_at) VALUES(?,?,?,?,?)',
+    )
+      .bind(crypto.randomUUID(), await hash(token), purpose, id, Date.now() + POLICY.grantTtl)
+      .run();
+    return { 'X-Admin-Grant': token };
+  }
+  it('requires a file target for TOTP deletion and issues a bound single-use grant', async () => {
+    const b = new Browser();
+    await b.status();
+    const code = new TOTP({ secret: env.TOTP_SECRET }).generate();
+    expect(
+      (await b.request('/api/auth/totp', 'POST', { code, intent: 'delete_file' })).status,
+    ).toBe(400);
+    const id = crypto.randomUUID();
+    const response = await b.request('/api/auth/totp', 'POST', {
+      code,
+      intent: 'delete_file',
+      targetId: id,
+    });
+    expect(response.status).toBe(200);
+    const { grant } = await response.json<{ grant: string }>();
+    expect(
+      await env.DB.prepare(
+        'SELECT purpose,target_id,consumed_at FROM admin_grants WHERE token_hash=?',
+      )
+        .bind(await hash(grant))
+        .first(),
+    ).toMatchObject({ purpose: 'delete_file', target_id: id, consumed_at: null });
+  });
+  it('rejects PIN alone, wrong grants, missing CSRF and locked downloads without deleting', async () => {
+    const b = new Browser();
+    const file = await readyFile(b);
+    const path = '/api/files/' + file.id;
+    expect((await b.request(path, 'DELETE')).status).toBe(403);
+    expect(
+      (await b.request(path, 'DELETE', {}, await deletionGrant(crypto.randomUUID()))).status,
+    ).toBe(403);
+    expect(
+      (await b.request(path, 'DELETE', {}, await deletionGrant(file.id, 'revoke_device'))).status,
+    ).toBe(403);
+    const grant = await deletionGrant(file.id);
+    expect((await b.request(path, 'DELETE', {}, { ...grant, 'X-CSRF-Token': '' })).status).toBe(
+      403,
+    );
+    expect(
+      (await b.request(path, 'DELETE', {}, { ...grant, Origin: 'https://evil.example' })).status,
+    ).toBe(403);
+    await b.request('/api/auth/logout', 'POST', { scope: 'download' });
+    await b.status();
+    expect((await b.request(path, 'DELETE', {}, grant)).status).toBe(401);
+    expect(await env.BUCKET.head(file.final_key)).not.toBeNull();
+    expect(
+      await env.DB.prepare('SELECT state FROM files WHERE id=?').bind(file.id).first('state'),
+    ).toBe('READY');
+  });
+  it('removes final and staging objects immediately, blocks download, and releases quota exactly once', async () => {
+    const b = new Browser();
+    const file = await readyFile(b);
+    const path = '/api/files/' + file.id;
+    const staging = 'staging/' + file.id;
+    await env.BUCKET.put(staging, new Uint8Array([1, 2, 3]));
+    await env.DB.prepare('UPDATE files SET staging_key=? WHERE id=?').bind(staging, file.id).run();
+    const grant = await deletionGrant(file.id);
+    expect((await b.request(path, 'DELETE', {}, grant)).status).toBe(200);
+    expect(await env.BUCKET.head(file.final_key)).toBeNull();
+    expect(await env.BUCKET.head(staging)).toBeNull();
+    expect((await b.request(path + '/download')).status).toBe(404);
+    expect((await (await b.request('/api/files')).json<{ files: unknown[] }>()).files).toEqual([]);
+    expect(
+      await env.DB.prepare('SELECT state,quota_bucket FROM files WHERE id=?').bind(file.id).first(),
+    ).toMatchObject({ state: 'DELETED', quota_bucket: 'released' });
+    expect((await b.request(path, 'DELETE', {}, grant)).status).toBe(403);
+    expect((await b.request(path, 'DELETE', {}, await deletionGrant(file.id))).status).toBe(200);
+    expect(
+      await env.DB.prepare('SELECT ready_bytes,reserved_bytes FROM quota_state').first(),
+    ).toMatchObject({ ready_bytes: 0, reserved_bytes: 0 });
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM maintenance_jobs').first('n')).toBe(0);
+    expect(
+      await env.DB.prepare(
+        "SELECT count(*) AS n FROM audit_events WHERE event_type='file_deleted' AND resource_id=?",
+      )
+        .bind(file.id)
+        .first('n'),
+    ).toBe(1);
+  });
+  it('retains quota on storage failure and scheduled cleanup retries safely', async () => {
+    const b = new Browser();
+    const file = await readyFile(b);
+    const deletion = vi
+      .spyOn(env.BUCKET, 'delete')
+      .mockRejectedValueOnce(new Error('storage unavailable'));
+    expect(
+      (await b.request('/api/files/' + file.id, 'DELETE', {}, await deletionGrant(file.id))).status,
+    ).toBe(503);
+    expect(await env.BUCKET.head(file.final_key)).not.toBeNull();
+    expect(await env.DB.prepare('SELECT ready_bytes FROM quota_state').first('ready_bytes')).toBe(
+      3,
+    );
+    expect((await b.request('/api/files/' + file.id + '/download')).status).toBe(404);
+    expect(
+      await env.DB.prepare('SELECT attempts,lease_until FROM maintenance_jobs WHERE resource_id=?')
+        .bind(file.id)
+        .first(),
+    ).toMatchObject({ attempts: 1, lease_until: null });
+    deletion.mockRestore();
+    await env.DB.prepare('UPDATE maintenance_jobs SET run_after=0 WHERE resource_id=?')
+      .bind(file.id)
+      .run();
+    await b.request('/api/local/cleanup', 'POST');
+    expect(await env.BUCKET.head(file.final_key)).toBeNull();
+    expect(await env.DB.prepare('SELECT ready_bytes FROM quota_state').first('ready_bytes')).toBe(
+      0,
+    );
+  });
+});
