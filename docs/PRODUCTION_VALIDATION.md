@@ -83,3 +83,11 @@ TOTP는 동일 코드를 재사용할 수 없고 5분에 5회까지 인증할 �
 `npm run deploy:production`의 typecheck, format, 테스트 45개, build가 통과했습니다. 추가 테스트 4개는 대상별 TOTP grant, PIN 단독·다른 목적/대상·Origin/CSRF·잠긴 세션 거부, 즉시 final/staging 삭제·중복 용량 반환 방지·grant 재사용 차단, R2 장애 후 cron 복구를 검증합니다.
 
 운영에서는 별도로 올린 48바이트 `delete-test-disposable.txt`만 삭제했습니다. 목록에서 사라지고 Worker 다운로드, 삭제 전 signed URL, R2 HEAD가 모두 404였습니다. D1은 DELETED/released, 해당 파일의 정리 작업은 0건이며 용량 counter가 실제 ready ledger와 일치했습니다. Chrome 데스크톱 및 390px 모바일에서 버튼·확인창·취소 후 파일 유지와 가로 넘침 없음을 확인했습니다. 실제 삭제는 API로 검증했고 브라우저에서는 확인창과 취소를 검증했습니다. 상세 결과: `PRODUCTION_DELETE_RESULT.json`.
+
+## 신뢰 기기 삭제 인증 생략 — 2026-10-03
+
+배포 `0f17c5b0-98db-41be-986f-8747cd091e3c`. 유효한 신뢰 브라우저는 다운로드 잠금을 연 뒤 확인창만으로 삭제할 수 있습니다. 서버가 browser cookie의 등록·종류·revoked_at을 검사하며 공용 세션, 위조 cookie, 등록 해제된 기기, 단축어는 TOTP 예외를 받지 않습니다. Origin, CSRF, 다운로드 세션 검사는 유지합니다.
+
+배포 전 typecheck, format, 테스트 51개, build가 통과했습니다. 추가 테스트 6개는 신뢰 브라우저의 grant 없는 삭제·중복 용량 반환 방지, Origin/CSRF/잠금 검사, 등록 해제·위조·단축어·만료 공용 세션의 인증 생략 거부를 검증합니다.
+
+운영에서는 별도 48바이트 `trusted-delete-test.txt`를 생성했습니다. 공용 업로드 세션의 grant 없는 삭제는 403, 테스트 신뢰 브라우저의 같은 요청은 DELETED였고 R2 HEAD 및 다운로드는 404였습니다. 테스트 기기는 검증 직후 등록 해제했고 같은 cookie의 삭제 요청이 다시 403이 됐습니다. Chrome의 기존 신뢰 브라우저에서 확인창에 Authenticator 입력란이 없고 영구 삭제 버튼만 표시됨을 확인했으며 취소 후 파일이 유지됐습니다. 실제 삭제는 API로 검증했습니다. 상세 결과: `PRODUCTION_TRUSTED_DELETE_RESULT.json`.

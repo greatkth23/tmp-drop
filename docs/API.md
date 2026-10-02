@@ -4,40 +4,40 @@ JSON 응답은 `Cache-Control: no-store`입니다. 오류는 `{error:{code,messa
 
 ## 권한
 
-| 권한              | 전달                            | 허용 범위                          |
-| ----------------- | ------------------------------- | ---------------------------------- |
-| 신뢰 브라우저     | HttpOnly `td` cookie            | 새 웹 업로드, 기기 목록            |
-| 공용 세션         | HttpOnly `ps` cookie            | 900초 내 새 웹 업로드              |
-| 다운로드 세션     | HttpOnly `da` cookie            | READY 목록과 다운로드              |
-| 파일별 capability | `Authorization: Upload <token>` | 해당 파일의 part, 상태, 완료, 취소 |
-| 단축어 기기       | `Authorization: Bearer <token>` | 단축어 업로드 생성                 |
-| 관리 grant        | `X-Admin-Grant: <token>`        | 목적·대상별 1회 관리 작업          |
+| 권한              | 전달                            | 허용 범위                                      |
+| ----------------- | ------------------------------- | ---------------------------------------------- |
+| 신뢰 브라우저     | HttpOnly `td` cookie            | 새 웹 업로드, 기기 목록, 잠금 해제된 파일 삭제 |
+| 공용 세션         | HttpOnly `ps` cookie            | 900초 내 새 웹 업로드                          |
+| 다운로드 세션     | HttpOnly `da` cookie            | READY 목록과 다운로드                          |
+| 파일별 capability | `Authorization: Upload <token>` | 해당 파일의 part, 상태, 완료, 취소             |
+| 단축어 기기       | `Authorization: Bearer <token>` | 단축어 업로드 생성                             |
+| 관리 grant        | `X-Admin-Grant: <token>`        | 목적·대상별 1회 관리 작업                      |
 
 운영 cookie는 `__Host-` 접두사, Secure, HttpOnly, SameSite=Strict, Path=/입니다. 로컬 cookie 접두사는 `dev-`입니다. 쿠키를 읽는 browser mutation은 `Origin`과 `X-CSRF-Token`을 검사합니다. 파일별 capability 요청은 cookie 인증을 쓰지 않습니다.
 
 ## 엔드포인트
 
-| Method / 경로                        | 인증                                                            | 입력 / 결과                                                            |
-| ------------------------------------ | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| GET `/api/health`                    | 없음                                                            | `{ok,version}`                                                         |
-| GET `/api/auth/status`               | 선택적 cookies                                                  | auth 상태·만료·serverNow·csrfToken·limits, 파일명·개수는 없음          |
-| POST `/api/auth/totp`                | Origin + CSRF                                                   | `{code,intent,deviceName?,targetId?}`                                  |
-| POST `/api/download/unlock`          | Origin + CSRF                                                   | `{pin,remember}`; 다운로드 cookie 발급                                 |
-| POST `/api/auth/logout`              | Origin + CSRF                                                   | `{scope:"upload"\|"download"\|"all",activeUploads?:[{id,capability}]}` |
-| GET `/api/devices`                   | 신뢰 브라우저 또는 manage grant                                 | `{devices:[{id,name,kind,createdAt,lastUsedAt,current}]}`              |
-| POST `/api/devices`                  | Origin + CSRF + create_device grant                             | `{name,kind:"shortcut"}` → `{id,token}` 201                            |
-| DELETE `/api/devices/:id`            | Origin + CSRF + target bound revoke_device grant                | 새 생성·후속 전송 차단, 업로드 취소 요청                               |
-| POST `/api/uploads`                  | 웹 업로드 cookie + Origin + CSRF                                | metadata + Idempotency-Key → UploadCreated 201/재호출 200              |
-| POST `/api/shortcut/uploads`         | 단축어 Bearer                                                   | metadata + Idempotency-Key → UploadCreated와 putUrl                    |
-| PUT `/api/uploads/:id/parts/:n`      | 파일 capability                                                 | raw binary → `{partNumber,etag,bytes}`                                 |
-| GET `/api/uploads/:id`               | 파일 capability                                                 | `{id,state,completedParts,capabilityExpiresAt,result}`                 |
-| POST `/api/uploads/:id/complete`     | 파일 capability                                                 | `{}` → `{state,result}`, 진행 중이면 202                               |
-| DELETE `/api/uploads/:id`            | 파일 capability                                                 | CANCEL_REQUESTED 202, FINALIZING/READY는 409                           |
-| GET `/api/files?cursor=...&limit=25` | 다운로드 cookie                                                 | `{files,nextCursor,serverNow}`; limit 1~50                             |
-| DELETE `/api/files/:id`              | 다운로드 cookie + Origin + CSRF + 대상에 묶인 delete_file grant | 즉시 저장소 삭제 → `{state:"DELETED"}`                                 |
-| GET `/api/files/:id/download`        | 다운로드 cookie                                                 | 로컬 binary 200/206, 운영 signed R2 URL 302                            |
-| POST `/api/local/cleanup`            | 로컬 + 웹 업로드 cookie + Origin + CSRF                         | 로컬 수동 정리 결과                                                    |
-| PUT `/api/uploads/:id/shortcut-body` | 로컬 + 파일 capability                                          | 로컬 staging PUT 204; 운영에는 노출하지 않음                           |
+| Method / 경로                        | 인증                                                                            | 입력 / 결과                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| GET `/api/health`                    | 없음                                                                            | `{ok,version}`                                                         |
+| GET `/api/auth/status`               | 선택적 cookies                                                                  | auth 상태·만료·serverNow·csrfToken·limits, 파일명·개수는 없음          |
+| POST `/api/auth/totp`                | Origin + CSRF                                                                   | `{code,intent,deviceName?,targetId?}`                                  |
+| POST `/api/download/unlock`          | Origin + CSRF                                                                   | `{pin,remember}`; 다운로드 cookie 발급                                 |
+| POST `/api/auth/logout`              | Origin + CSRF                                                                   | `{scope:"upload"\|"download"\|"all",activeUploads?:[{id,capability}]}` |
+| GET `/api/devices`                   | 신뢰 브라우저 또는 manage grant                                                 | `{devices:[{id,name,kind,createdAt,lastUsedAt,current}]}`              |
+| POST `/api/devices`                  | Origin + CSRF + create_device grant                                             | `{name,kind:"shortcut"}` → `{id,token}` 201                            |
+| DELETE `/api/devices/:id`            | Origin + CSRF + target bound revoke_device grant                                | 새 생성·후속 전송 차단, 업로드 취소 요청                               |
+| POST `/api/uploads`                  | 웹 업로드 cookie + Origin + CSRF                                                | metadata + Idempotency-Key → UploadCreated 201/재호출 200              |
+| POST `/api/shortcut/uploads`         | 단축어 Bearer                                                                   | metadata + Idempotency-Key → UploadCreated와 putUrl                    |
+| PUT `/api/uploads/:id/parts/:n`      | 파일 capability                                                                 | raw binary → `{partNumber,etag,bytes}`                                 |
+| GET `/api/uploads/:id`               | 파일 capability                                                                 | `{id,state,completedParts,capabilityExpiresAt,result}`                 |
+| POST `/api/uploads/:id/complete`     | 파일 capability                                                                 | `{}` → `{state,result}`, 진행 중이면 202                               |
+| DELETE `/api/uploads/:id`            | 파일 capability                                                                 | CANCEL_REQUESTED 202, FINALIZING/READY는 409                           |
+| GET `/api/files?cursor=...&limit=25` | 다운로드 cookie                                                                 | `{files,nextCursor,serverNow}`; limit 1~50                             |
+| DELETE `/api/files/:id`              | 다운로드 cookie + Origin + CSRF + (신뢰 브라우저 또는 대상별 delete_file grant) | 즉시 저장소 삭제 → `{state:"DELETED"}`                                 |
+| GET `/api/files/:id/download`        | 다운로드 cookie                                                                 | 로컬 binary 200/206, 운영 signed R2 URL 302                            |
+| POST `/api/local/cleanup`            | 로컬 + 웹 업로드 cookie + Origin + CSRF                                         | 로컬 수동 정리 결과                                                    |
+| PUT `/api/uploads/:id/shortcut-body` | 로컬 + 파일 capability                                                          | 로컬 staging PUT 204; 운영에는 노출하지 않음                           |
 
 `intent`는 `upload`, `trust`, `manage`, `create_device`, `revoke_device`, `delete_file`, `maintenance_report`, `maintenance_quota`, `maintenance_delete`입니다. `trust`에는 기기 이름, `revoke_device`와 `delete_file`에는 UUID targetId가 필요합니다. 관리 grant TTL은 5분이고 한 번 소비하면 재사용할 수 없습니다.
 
@@ -92,4 +92,4 @@ staging에서는 API·정적 자산을 포함한 모든 경로에 추가 `X-Stag
 
 ## 완료된 파일의 즉시 삭제
 
-파일 목록의 삭제 버튼은 확인창과 새 TOTP 인증을 거칩니다. PIN만으로는 삭제할 수 없습니다. `delete_file` grant는 파일 UUID에 묶이며 한 번만 사용할 수 있습니다. 서버는 삭제 임대 획득 후 DELETING으로 전환해 다운로드를 차단하고 R2 final/staging 객체를 즉시 삭제합니다. 저장소 삭제 성공 후 DELETED로 전환하면서 용량을 반환합니다. 실패하면 DELETE_FAILED 503을 반환하고 파일을 숨긴 상태로 cron이 재시도합니다. 이미 삭제된 파일에 새 grant로 요청하면 DELETED를 반환하며 용량은 중복 반환하지 않습니다. 이미 시작된 다운로드의 수신 바이트는 회수할 수 없습니다.
+파일 목록의 삭제 버튼은 확인창을 거칩니다. 유효한 신뢰 브라우저 cookie가 있으면 TOTP 없이 삭제합니다. 공용 세션·등록 해제된 기기·단축어 토큰은 이 예외에 포함되지 않으며 새 TOTP 인증이 필요합니다. PIN만으로는 삭제할 수 없습니다. `delete_file` grant는 파일 UUID에 묶이며 한 번만 사용할 수 있습니다. 서버는 삭제 임대 획득 후 DELETING으로 전환해 다운로드를 차단하고 R2 final/staging 객체를 즉시 삭제합니다. 저장소 삭제 성공 후 DELETED로 전환하면서 용량을 반환합니다. 실패하면 DELETE_FAILED 503을 반환하고 파일을 숨긴 상태로 cron이 재시도합니다. 이미 삭제된 파일에 새 grant로 요청하면 DELETED를 반환하며 용량은 중복 반환하지 않습니다. 이미 시작된 다운로드의 수신 바이트는 회수할 수 없습니다.

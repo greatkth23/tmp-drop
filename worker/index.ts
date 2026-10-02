@@ -288,7 +288,8 @@ app.delete('/api/files/:id', async (c) => {
   await requireBrowserMutation(c);
   await downloadSession(c);
   const id = c.req.param('id');
-  await grant(c, 'delete_file', id);
+  const principal = await browserPrincipal(c, false);
+  if (principal?.kind !== 'device') await grant(c, 'delete_file', id);
   const file = await c.env.DB.prepare('SELECT * FROM files WHERE id=?').bind(id).first<FileRow>();
   if (!file) fail(404, 'FILE_UNAVAILABLE', '파일을 찾을 수 없습니다.');
   if (file.state === 'DELETED') return c.json({ state: 'DELETED' });

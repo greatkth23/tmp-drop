@@ -975,6 +975,74 @@ describe('immediate file deletion', () => {
       .run();
     return { 'X-Admin-Grant': token };
   }
+
+  async function trustBrowser(b: Browser, kind = 'browser') {
+    const token = crypto.randomUUID();
+    const id = crypto.randomUUID();
+    await env.DB.prepare(
+      'INSERT INTO trusted_devices(id,name,kind,token_hash,created_at,last_used_at) VALUES(?,?,?,?,?,?)',
+    )
+      .bind(id, 'Trusted deletion test', kind, await hash(token), Date.now(), Date.now())
+      .run();
+    b.cookies.set('dev-td', token);
+    await b.status();
+    return id;
+  }
+  it('deletes from a trusted browser without TOTP or grant and releases quota once', async () => {
+    const b = new Browser();
+    const file = await readyFile(b);
+    await trustBrowser(b);
+    expect((await b.status()).uploadAuth).toBe('trusted');
+    const path = '/api/files/' + file.id;
+    expect((await b.request(path, 'DELETE')).status).toBe(200);
+    expect((await b.request(path, 'DELETE')).status).toBe(200);
+    expect(await env.BUCKET.head(file.final_key)).toBeNull();
+    expect(await env.DB.prepare('SELECT ready_bytes FROM quota_state').first('ready_bytes')).toBe(
+      0,
+    );
+    expect(await env.DB.prepare('SELECT count(*) AS n FROM admin_grants').first('n')).toBe(0);
+  });
+  it('still requires Origin, CSRF and download unlock for a trusted browser', async () => {
+    const b = new Browser();
+    const file = await readyFile(b);
+    await trustBrowser(b);
+    const path = '/api/files/' + file.id;
+    expect((await b.request(path, 'DELETE', {}, { 'X-CSRF-Token': '' })).status).toBe(403);
+    expect((await b.request(path, 'DELETE', {}, { Origin: 'https://evil.example' })).status).toBe(
+      403,
+    );
+    await b.request('/api/auth/logout', 'POST', { scope: 'download' });
+    await b.status();
+    expect((await b.request(path, 'DELETE')).status).toBe(401);
+    expect(await env.BUCKET.head(file.final_key)).not.toBeNull();
+  });
+  it.each(['revoked', 'forged', 'shortcut', 'expired temporary'])(
+    'does not bypass TOTP for %s credentials',
+    async (credential) => {
+      const b = new Browser();
+      const file = await readyFile(b);
+      if (credential === 'revoked') {
+        const id = await trustBrowser(b);
+        await env.DB.prepare('UPDATE trusted_devices SET revoked_at=? WHERE id=?')
+          .bind(Date.now(), id)
+          .run();
+      } else if (credential === 'forged') {
+        b.cookies.set('dev-td', crypto.randomUUID());
+      } else if (credential === 'shortcut') {
+        await trustBrowser(b, 'shortcut');
+      } else {
+        await env.DB.prepare('UPDATE temp_sessions SET expires_at=?')
+          .bind(Date.now() - 1)
+          .run();
+      }
+      await b.status();
+      expect((await b.request('/api/files/' + file.id, 'DELETE')).status).toBe(403);
+      expect(await env.BUCKET.head(file.final_key)).not.toBeNull();
+      expect(
+        await env.DB.prepare('SELECT state FROM files WHERE id=?').bind(file.id).first('state'),
+      ).toBe('READY');
+    },
+  );
   it('requires a file target for TOTP deletion and issues a bound single-use grant', async () => {
     const b = new Browser();
     await b.status();

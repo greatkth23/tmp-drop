@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "origin": "https://drop.rmarkfcl.workers.dev",
+  "startedAt": "2026-10-02T16:53:01.135Z",
+  "checks": [
+    {
+      "name": "temporary upload session still requires TOTP"
+    },
+    {
+      "name": "trusted browser deletes without TOTP or grant",
+      "id": "5f8e8bea-a612-4b63-aa63-8f13fe1c2ac0"
+    },
+    {
+      "name": "test device revoked and deletion exemption denied"
+    },
+    {
+      "name": "Chrome trusted browser dialog shows permanent-delete button without Authenticator input; cancellation preserves file"
+    }
+  ],
+  "ok": true,
+  "finishedAt": "2026-10-02T16:54:10.029Z",
+  "deploymentId": "0f17c5b0-98db-41be-986f-8747cd091e3c"
+}

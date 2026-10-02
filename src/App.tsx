@@ -730,6 +730,7 @@ function DownloadPage({
     [files, setFiles] = useState<FileSummary[]>([]),
     [deleting, setDeleting] = useState<FileSummary | null>(null),
     [deleteBusy, setDeleteBusy] = useState(false),
+    [deleteError, setDeleteError] = useState(''),
     [notice, setNotice] = useState(''),
     [cursor, setCursor] = useState<string | null>(null),
     [loaded, setLoaded] = useState(false);
@@ -830,6 +831,29 @@ function DownloadPage({
       setError(message(e));
     }
   };
+  const deleteFile = async (grant?: string) => {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    setDeleteError('');
+    try {
+      await mutate(
+        `/api/files/${deleting.id}`,
+        {},
+        'DELETE',
+        grant ? { 'X-Admin-Grant': grant } : {},
+      );
+      setFiles((previous) => previous.filter((file) => file.id !== deleting.id));
+      setNotice(`${deleting.filename} 파일을 삭제했습니다.`);
+      setDeleting(null);
+      await load();
+    } catch (error) {
+      await refresh();
+      await load();
+      throw error;
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
   const visible = files.filter((f) => f.expiresAt > now);
   return (
     <>
@@ -911,6 +935,7 @@ function DownloadPage({
                     aria-label={`${f.filename} 삭제`}
                     onClick={() => {
                       setNotice('');
+                      setDeleteError('');
                       setDeleting(f);
                     }}
                   >
@@ -931,29 +956,30 @@ function DownloadPage({
         >
           <p className="filename">{deleting.filename}</p>
           <p>삭제하면 모든 기기에서 다운로드할 수 없으며 복구할 수 없습니다.</p>
-          <TotpForm
-            intent="delete_file"
-            targetId={deleting.id}
-            onBusyChange={setDeleteBusy}
-            onSuccess={async (grant) => {
-              setDeleteBusy(true);
-              try {
-                await mutate(`/api/files/${deleting.id}`, {}, 'DELETE', {
-                  'X-Admin-Grant': grant!,
-                });
-                setFiles((previous) => previous.filter((file) => file.id !== deleting.id));
-                setNotice(`${deleting.filename} 파일을 삭제했습니다.`);
-                setDeleting(null);
-                await load();
-              } catch (error) {
-                await refresh();
-                await load();
-                throw error;
-              } finally {
-                setDeleteBusy(false);
-              }
-            }}
-          />
+          <ErrorText error={deleteError} />
+          {auth.uploadAuth === 'trusted' ? (
+            <>
+              <p className="help">
+                신뢰 기기로 등록된 브라우저이므로 인증 코드 없이 삭제할 수 있습니다.
+              </p>
+              <button
+                className="btn danger full"
+                disabled={deleteBusy}
+                onClick={() => {
+                  void deleteFile().catch((error) => setDeleteError(message(error)));
+                }}
+              >
+                {deleteBusy ? '삭제 중…' : '영구 삭제'}
+              </button>
+            </>
+          ) : (
+            <TotpForm
+              intent="delete_file"
+              targetId={deleting.id}
+              onBusyChange={setDeleteBusy}
+              onSuccess={deleteFile}
+            />
+          )}
           <button
             className="btn full"
             style={{ marginTop: 12 }}
