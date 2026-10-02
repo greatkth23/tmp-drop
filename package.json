@@ -1,0 +1,49 @@
+{
+  "name": "personal-temporary-drop",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --test-scheduled",
+    "dev:ui": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
+    "test": "vitest run",
+    "types": "wrangler types worker/env.d.ts --include-runtime false --strict-vars false",
+    "db:local": "wrangler d1 migrations apply temporary-drop --local",
+    "setup:local": "node scripts/setup-local.mjs",
+    "code": "node scripts/local-code.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "smoke:local": "node scripts/smoke-local.mjs",
+    "config:production": "node scripts/check-production.mjs",
+    "check": "npm run typecheck && npm run format:check && npm test && npm run build",
+    "deploy:check": "wrangler deploy --dry-run --outdir ../../work/worker-build"
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.20",
+    "fast-xml-parser": "^5.11.2",
+    "hono": "^4.13.12",
+    "otpauth": "^9.5.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.3.5",
+    "@cloudflare/workers-types": "^5.20261002.1",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsonc-parser": "^3.3.1",
+    "prettier": "^3.9.9",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.146.0"
+  }
+}

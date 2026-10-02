@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "verifiedAt": "2026-10-02T09:49:08.279Z",
+  "health": {
+    "ok": true,
+    "version": "0.2.0"
+  },
+  "asset": "/assets/index-C1HhpRxj.js",
+  "gate": "passed",
+  "fixtures": [
+    {
+      "id": "de134f4e-19b3-4fc5-bd6b-6f9a7660479c",
+      "state": "DELETED",
+      "quota_bucket": "released",
+      "deleted_at": 1790934315473
+    },
+    {
+      "id": "ea732594-eb5e-4b08-afe3-0b3837fc5ca1",
+      "state": "DELETED",
+      "quota_bucket": "released",
+      "deleted_at": 1790934314357
+    }
+  ],
+  "physicalDeletion": "HEAD 404 for both fixtures",
+  "quota": {
+    "reserved_bytes": 0,
+    "ready_bytes": 134217814,
+    "expected_reserved": 0,
+    "expected_ready": 134217814
+  },
+  "automaticReport": {
+    "id": "930d165d-78a9-4abd-bf56-902f2329dfcb",
+    "createdAt": "2026-10-02T09:45:15.973Z",
+    "scanned": 6,
+    "missingReady": 0,
+    "mismatch": 0
+  },
+  "faultTriggers": "removed"
+}

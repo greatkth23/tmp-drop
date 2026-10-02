@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "personal-temporary-drop-production",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [{ "pattern": "drop.example.com", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "temporary-drop-production",
+      "database_id": "REPLACE_WITH_PRODUCTION_DATABASE_UUID",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "temporary-drop-production" }],
+  "vars": {
+    "ENVIRONMENT": "production",
+    "APP_ORIGIN": "https://drop.example.com",
+    "R2_BUCKET_NAME": "temporary-drop-production",
+    "R2_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
+    "TOTP_SECRET_VERSION": "1",
+    "PIN_VERSION": "1",
+  },
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+}

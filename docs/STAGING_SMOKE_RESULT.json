@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "origin": "https://personal-temporary-drop-staging.rmarkfcl.workers.dev",
+  "startedAt": "2026-10-02T09:30:29.913Z",
+  "checks": [
+    {
+      "name": "staging gate denies API, page and static assets"
+    },
+    {
+      "name": "remote TOTP login and Secure HttpOnly Strict cookies"
+    },
+    {
+      "name": "remote 64MiB+1 multipart, ListParts manifest and finalize",
+      "fileId": "83787d22-8dfe-49c3-a2e4-fe4a482b83eb",
+      "bytes": 67108865,
+      "uploadSeconds": 17.4
+    },
+    {
+      "name": "signed GET full SHA-256 and Korean attachment",
+      "sha256": "db06a3cba93535048b096474d502e91c737410edda4ff81abcfc93e82cc922e9",
+      "bytes": 67108865
+    },
+    {
+      "name": "signed GET Range across part boundary"
+    },
+    {
+      "name": "expired S3 signed GET rejected"
+    },
+    {
+      "name": "shortcut signed PUT and conditional CopyObject preserve final bytes",
+      "fileId": "24f6d485-5908-4dc4-af1b-29e72de3cc8c",
+      "bytes": 42,
+      "sha256": "51641f7535f83c8352c52f404bf7dc9fd4afbd07b205f12e2f3cf2c8b342cbba"
+    },
+    {
+      "name": "CopyObject source ETag race rejected with 412"
+    },
+    {
+      "name": "remote reconciliation finds matching quota and READY object metadata",
+      "reportId": "003c0c57-45fd-4313-bc31-fe6df9f5a5c7",
+      "scanned": 7,
+      "readyBytes": 134217817
+    },
+    {
+      "name": "revoked shortcut token rejected"
+    }
+  ],
+  "finishedAt": "2026-10-02T09:32:02.077Z"
+}

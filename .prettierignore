@@ -1,0 +1,8 @@
+node_modules
+dist
+.wrangler
+.dev.vars*
+local-access.json
+worker/env.d.ts
+package-lock.json
+coverage

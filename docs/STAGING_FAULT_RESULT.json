@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "testedAt": "2026-10-02T09:30:43.014Z",
+  "checks": [
+    {
+      "check": "real R2 upload succeeds, D1 SENDING acknowledgement fails, ListParts recovers DONE",
+      "fileId": "ea732594-eb5e-4b08-afe3-0b3837fc5ca1"
+    },
+    {
+      "check": "real R2 complete succeeds, D1 READY write fails, expired lease and final HEAD recover READY",
+      "fileId": "ea732594-eb5e-4b08-afe3-0b3837fc5ca1"
+    },
+    {
+      "check": "real ListParts rejects D1 ETag mismatch before CompleteMultipartUpload",
+      "fileId": "de134f4e-19b3-4fc5-bd6b-6f9a7660479c"
+    },
+    {
+      "check": "logical READY expiry immediately denies a new download URL"
+    },
+    {
+      "check": "fault injections preserve quota accounting",
+      "reservedBytes": 67108868,
+      "readyBytes": 67108910
+    }
+  ]
+}
