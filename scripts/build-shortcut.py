@@ -8,6 +8,8 @@ out.mkdir(parents=True, exist_ok=True)
 workflow = {
     "WFWorkflowName": "Temporary Drop signing probe",
     "WFWorkflowClientVersion": "2700.0.4",
+    "WFWorkflowClientRelease": "27.0.1",
+    "WFWorkflowHasOutputFallback": False,
     "WFWorkflowMinimumClientVersion": 900,
     "WFWorkflowMinimumClientVersionString": "900",
     "WFWorkflowIcon": {"WFWorkflowIconGlyphNumber": 61440, "WFWorkflowIconStartColor": 431817727},
@@ -16,8 +18,8 @@ workflow = {
     "WFWorkflowInputContentItemClasses": ["WFStringContentItem"],
     "WFWorkflowActions": [{
         "WFWorkflowActionIdentifier": "is.workflow.actions.gettext",
-        "WFWorkflowActionParameters": {"WFTextActionText": "Temporary Drop signing probe. No credentials."},
+        "WFWorkflowActionParameters": {"UUID": "2A52CCB8-83A7-47B7-A2E8-9F81A88F6A36", "WFTextActionText": "Temporary Drop signing probe. No credentials."},
     }],
 }
-(out / "Temporary-Drop.unsigned.plist").write_bytes(plistlib.dumps(workflow, fmt=plistlib.FMT_BINARY))
+(out / "Temporary-Drop-unsigned.shortcut").write_bytes(plistlib.dumps(workflow, fmt=plistlib.FMT_BINARY))
 print("Built credential-free signing probe")
