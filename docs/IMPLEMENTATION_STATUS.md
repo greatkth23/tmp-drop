@@ -44,20 +44,20 @@
 
 ## 계획별 상태
 
-| 계획 ID           | 현재 상태                                                                         | 남은 조건                                                                |
-| ----------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| I01–I04 / I08     | 로컬 실행, staging/production 분리·원격 schema·배포, Git 원격 연결·CI 파일        | D1 복원 drill                                                            |
-| I05               | shared schema·DTO·API 문서                                                        | OpenAPI 생성                                                             |
-| I06 / I07         | R2 어댑터·서명·실제 CopyObject·ListParts 검증                                     | 원격 로그 수집·민감 정보 수집 설정 audit                                 |
-| A01–A10           | scope·Origin/CSRF·TOTP replay·rate limit·기기·관리 grant, 원격 cookie/폐기        | RFC 시간 벡터·대규모 기기 목록·시간 경계 추가 시험                       |
-| U01–U10           | admission·capability·stream·manifest·완료·취소·queue·ListParts 복구·lease·offline | 1/16/32 GiB, 장시간·실제 회선 단절·다수 동시 업로드·complete/cancel 부하 |
-| U11 / A10         | 단축어 API·실제 signed PUT·조건부 복사·source race                                | iOS foreground·실기기·5 GiB                                              |
-| U12 / F08         | 연결 안내·토큰 1회 표시                                                           | 실제 `.shortcut` 생성·설치·서명·기기별 사용 검증                         |
-| D01 / D02         | cursor·TTL·download·Range와 원격 signed GET·한글 attachment                       | 대용량·실기기·장시간 만료 재접속                                         |
-| L01 / L02         | 삭제 lease·재시도·정확한 quota 해제, 실제 lifecycle                               | 삭제 중 DB/R2 장애, 다량 동시 cron과 원격 지연 측정                      |
-| L03 / L04         | 자동 보고·orphan paging/grace·quota 교차/수정, 별도 TOTP 삭제                     | 실제 24시간 grace 관측, 대규모 R2 paging, D1 복원과 정합성 drill         |
-| F01–F10           | 세 화면·gate·queue·기기·dialog·모바일 CSS·offline                                 | Safari/iPhone/iPad, VoiceOver·키보드 전체 흐름·대비 audit                |
-| O01–O06 / S01–S08 | 로컬 bootstrap, staging/production 검증, 운영 TOTP 등록, 비밀 교체·장애 문서      | 경고·예산·복원, 대용량 CPU/메모리/비용, 확대 검증                        |
+| 계획 ID           | 현재 상태                                                                         | 남은 조건                                                                            |
+| ----------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| I01–I04 / I08     | 로컬 실행, staging/production 분리·원격 schema·배포, Git 원격 연결·CI 파일        | D1 복원 drill                                                                        |
+| I05               | shared schema·DTO·API 문서                                                        | OpenAPI 생성                                                                         |
+| I06 / I07         | R2 어댑터·서명·실제 CopyObject·ListParts 검증                                     | 원격 로그 수집·민감 정보 수집 설정 audit                                             |
+| A01–A10           | scope·Origin/CSRF·TOTP replay·rate limit·기기·관리 grant, 원격 cookie/폐기        | RFC 시간 벡터·대규모 기기 목록·시간 경계 추가 시험                                   |
+| U01–U10           | admission·capability·stream·manifest·완료·취소·queue·ListParts 복구·lease·offline | 1/16/32 GiB, 장시간·실제 회선 단절·다수 동시 업로드·complete/cancel 부하             |
+| U11 / A10         | 단축어 API·실제 signed PUT·조건부 복사·source race                                | iOS foreground·실기기·5 GiB                                                          |
+| U12 / F08         | `/shortcut` 제작 안내·토큰 1회 표시/복사 확인·unsigned 소스 구조 검사             | 서명된 `.shortcut`·iOS 27.0.1 설치/실기기 검증 (CI 서명은 iCloud 로그인 필요로 실패) |
+| D01 / D02         | cursor·TTL·download·Range와 원격 signed GET·한글 attachment                       | 대용량·실기기·장시간 만료 재접속                                                     |
+| L01 / L02         | 삭제 lease·재시도·정확한 quota 해제, 실제 lifecycle                               | 삭제 중 DB/R2 장애, 다량 동시 cron과 원격 지연 측정                                  |
+| L03 / L04         | 자동 보고·orphan paging/grace·quota 교차/수정, 별도 TOTP 삭제                     | 실제 24시간 grace 관측, 대규모 R2 paging, D1 복원과 정합성 drill                     |
+| F01–F10           | 세 화면·gate·queue·기기·dialog·모바일 CSS·offline                                 | Safari/iPhone/iPad, VoiceOver·키보드 전체 흐름·대비 audit                            |
+| O01–O06 / S01–S08 | 로컬 bootstrap, staging/production 검증, 운영 TOTP 등록, 비밀 교체·장애 문서      | 경고·예산·복원, 대용량 CPU/메모리/비용, 확대 검증                                    |
 
 ## 다음 순서
 

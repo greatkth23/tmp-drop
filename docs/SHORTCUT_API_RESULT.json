@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "origin": "https://drop.rmarkfcl.workers.dev",
+  "startedAt": "2026-10-02T17:35:25.347Z",
+  "checks": [
+    {
+      "name": "iOS recipe API: numeric metadata, stable idempotency, raw R2 PUT, READY and exact downloaded bytes",
+      "fileId": "064e7806-3372-4569-a1e5-25e3c032d076",
+      "bytes": 1024,
+      "sha256": "2bce1ba628720664be4b9fdd77aae0678e5f0f3f02fc6ff641ec879094f6a404"
+    },
+    {
+      "name": "prototype credential revoked"
+    },
+    {
+      "name": "disposable fixture removed"
+    }
+  ],
+  "ok": true,
+  "iPhoneTested": false,
+  "finishedAt": "2026-10-02T17:36:02.424Z",
+  "deploymentId": "2bc50ea8-33bd-4fa0-b878-64dbe0c27f22",
+  "signingProbe": {
+    "result": "iCloud login required",
+    "run": "https://github.com/greatkth23/tmp-drop/actions/runs/37040175575"
+  },
+  "browserChecks": {
+    "route": "/shortcut",
+    "mobileWidth": 390,
+    "horizontalOverflow": false,
+    "copySuccessMessage": true,
+    "clipboardContentsVerified": false
+  }
+}
