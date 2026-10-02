@@ -16,12 +16,15 @@
     "db:local": "wrangler d1 migrations apply temporary-drop --local",
     "setup:local": "node scripts/setup-local.mjs",
     "code": "node scripts/local-code.mjs",
+    "setup:production": "node scripts/setup-production.mjs",
+    "smoke:remote": "node scripts/smoke-staging.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "smoke:local": "node scripts/smoke-local.mjs",
     "config:production": "node scripts/check-production.mjs",
     "check": "npm run typecheck && npm run format:check && npm test && npm run build",
-    "deploy:check": "wrangler deploy --dry-run --outdir ../../work/worker-build"
+    "deploy:check": "wrangler deploy --dry-run --outdir .wrangler/worker-build",
+    "deploy:production": "npm run config:production && npm run check && wrangler deploy --config wrangler.production.jsonc"
   },
   "dependencies": {
     "aws4fetch": "^1.0.20",

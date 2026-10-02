@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-10-02T15:37:50.298Z",
+  "origin": "https://drop.rmarkfcl.workers.dev",
+  "deploymentVersion": "26f67d57-7ced-4d14-ba55-5ea0d2d7ef4d",
+  "cancelledFixtures": [
+    {
+      "id": "0d5f9df9-c672-42b9-925b-0d47f94bbe22",
+      "state": "DELETED",
+      "quota": "released",
+      "finalHead": 404,
+      "multipartAborted": true
+    },
+    {
+      "id": "46de5aed-0922-45bb-9265-e884f6e2f73b",
+      "state": "DELETED",
+      "quota": "released",
+      "finalHead": 404,
+      "multipartAborted": true
+    }
+  ],
+  "quota": {
+    "reserved_bytes": 0,
+    "ready_bytes": 68157625,
+    "expected_reserved": 0,
+    "expected_ready": 68157625
+  },
+  "cron": {
+    "id": "47a5883a-0cbc-49c0-8671-8ab79ba06cdb",
+    "created_at": 1790955015683,
+    "missing": 0,
+    "mismatches": 0,
+    "createdAt": "2026-10-02T15:30:15.683Z"
+  },
+  "latestAssets": true,
+  "csp": true
+}

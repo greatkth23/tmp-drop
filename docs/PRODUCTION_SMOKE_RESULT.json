@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "origin": "https://drop.rmarkfcl.workers.dev",
+  "startedAt": "2026-10-02T15:32:30.081Z",
+  "checks": [
+    {
+      "name": "production pages and API authentication boundaries"
+    },
+    {
+      "name": "remote TOTP login and Secure HttpOnly Strict cookies"
+    },
+    {
+      "name": "using browser-uploaded multipart fixture for independent API download checks",
+      "fileId": "5cfdeec1-b989-4ab1-b0a9-d9a8f21ba69b"
+    },
+    {
+      "name": "signed GET full SHA-256 and Korean attachment",
+      "sha256": "db06a3cba93535048b096474d502e91c737410edda4ff81abcfc93e82cc922e9",
+      "bytes": 67108865
+    },
+    {
+      "name": "signed GET Range across part boundary"
+    },
+    {
+      "name": "expired S3 signed GET rejected"
+    },
+    {
+      "name": "shortcut signed PUT and conditional CopyObject preserve final bytes",
+      "fileId": "88ad41b1-56e4-41ea-95c4-a3f595b3c55e",
+      "bytes": 42,
+      "sha256": "51641f7535f83c8352c52f404bf7dc9fd4afbd07b205f12e2f3cf2c8b342cbba"
+    },
+    {
+      "name": "CopyObject source ETag race rejected with 412"
+    },
+    {
+      "name": "remote reconciliation finds matching quota and READY object metadata",
+      "reportId": "a7e1f1bb-859c-4d17-ad05-ec5778d4d383",
+      "scanned": 7,
+      "readyBytes": 68157625
+    },
+    {
+      "name": "revoked shortcut token rejected"
+    },
+    {
+      "name": "test upload and download sessions ended"
+    }
+  ],
+  "finishedAt": "2026-10-02T15:34:33.614Z"
+}

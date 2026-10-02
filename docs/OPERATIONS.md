@@ -1,14 +1,14 @@
 # 운영 준비와 장애 대응
 
-이 문서는 운영 절차입니다. 실제 staging 생성·배포·검증 기록은 `STAGING_VALIDATION.md`에 있습니다. production은 아직 배포하지 않았습니다. 출시 차단 항목은 `IMPLEMENTATION_STATUS.md`에 있습니다.
+이 문서는 운영 절차입니다. staging 기록은 `STAGING_VALIDATION.md`, 2026-10-03 운영 배포와 실제 사이트 검증은 `PRODUCTION_VALIDATION.md`에 있습니다. 실기기·GiB 단위 검증 등 남은 항목은 `IMPLEMENTATION_STATUS.md`에 있습니다.
 
 ## 환경 분리와 배포 순서
 
 1. 로컬용 `.dev.vars` 비밀과 DB·버킷을 운영에 재사용하지 않습니다.
 2. Cloudflare 계정에서 staging과 production의 Worker, D1, R2를 각각 생성합니다. 각 환경은 서로 다른 비밀과 도메인을 사용합니다.
-3. `wrangler.production.example.jsonc`를 `wrangler.production.jsonc`로 복사해 실제 DB UUID, account ID, bucket 이름, HTTPS 도메인을 넣습니다. staging도 별도 구성 파일을 사용합니다.
-4. R2는 비공개로 유지합니다. `r2.dev` 공개 접근과 R2 public custom domain은 끕니다. 서비스 UI는 Worker custom domain을 사용합니다. R2 서명용 credential은 해당 환경의 단일 bucket에 한정합니다.
-5. 아래 비밀을 Worker secrets로 입력합니다. 운영용 TOTP는 운영자 Authenticator에 등록하고 로컬 코드 생성 도구에 운영 비밀을 넣지 않습니다.
+3. `wrangler.production.example.jsonc`를 `wrangler.production.jsonc`로 복사해 실제 DB UUID, account ID, bucket 이름, HTTPS origin을 넣습니다. 현재 운영은 Worker `drop`, `workers_dev: true`, `https://drop.rmarkfcl.workers.dev`입니다. custom domain을 사용할 때는 `workers_dev: false`와 해당 도메인의 `routes`를 설정합니다. staging도 별도 구성 파일을 사용합니다.
+4. R2는 비공개로 유지합니다. `r2.dev` 공개 접근과 R2 public custom domain은 끕니다. 서비스 UI는 Worker HTTPS 주소를 사용합니다. R2 서명용 credential은 해당 환경의 단일 bucket에 한정합니다.
+5. `npm run setup:production`은 저장소와 OneDrive 밖의 `%USERPROFILE%\.codex\private\tmp-drop`에 새 운영 비밀과 Authenticator 등록 HTML을 생성하며 기존 비밀은 보존합니다. R2 키는 별도로 해당 운영 버킷에 한정해 발급합니다. 아래 비밀을 Worker secrets로 입력합니다. 운영용 TOTP는 운영자 Authenticator에 등록하고 로컬 코드 생성 도구에 운영 비밀을 넣지 않습니다.
 
 | Secret               | 용도                                                   |
 | -------------------- | ------------------------------------------------------ |
@@ -44,7 +44,7 @@ npx wrangler deploy --config wrangler.production.jsonc
 
 8. 운영 주소에서 인증 전 metadata 비노출, PIN·TOTP, 작은 검증 파일, 기기 폐기, cron 실행·삭제를 확인합니다. 이후 테스트 기기의 credential을 폐기합니다.
 
-운영 구성 검사 스크립트는 공개 설정의 오타를 검사합니다. 비밀 값의 존재·품질, R2 공개 설정, 과금, 실기기 검증을 대신하지 않습니다. 현재 CI는 타입·포맷·테스트·빌드·dry-run만 수행합니다. 자동 배포와 원격 CI 실행은 아직 설정하지 않았습니다.
+운영 구성 검사 스크립트는 공개 설정의 오타를 검사합니다. 비밀 값의 존재·품질, R2 공개 설정, 과금, 실기기 검증을 대신하지 않습니다. GitHub CI는 push/PR에서 타입·포맷·테스트·빌드·dry-run을 수행합니다. 운영 자동 배포는 설정하지 않았으며 검증 후 명시적으로 배포합니다.
 
 ## 정리와 lifecycle
 
@@ -52,7 +52,7 @@ npx wrangler deploy --config wrangler.production.jsonc
 
 READY의 논리 만료는 HTTP 요청 시 바로 적용됩니다. cron 지연이 파일 목록·신규 다운로드 URL 발급 기간을 늘리지 않습니다. 물리 삭제 지연 중에는 quota를 유지합니다. 완료 URL 발급과 이미 열린 전송의 즉시 취소는 별개입니다.
 
-다음은 신규 전용 bucket의 fallback 규칙 제안입니다. 기존 bucket에 적용할 때는 기존 규칙을 먼저 확인합니다. 이 명령들은 아직 실행하지 않았습니다.
+다음 규칙은 운영 전용 bucket에 적용했고 조회로 확인했습니다. 다른 기존 bucket에 적용할 때는 기존 규칙을 먼저 확인합니다.
 
 ```powershell
 npx wrangler r2 bucket lifecycle add temporary-drop-production final-fallback final/ --expire-days 7

@@ -6,3 +6,5 @@ local-access.json
 worker/env.d.ts
 package-lock.json
 coverage
+docs/design/
+docs/planning/

@@ -19,7 +19,6 @@ const require = (condition, message) => {
 };
 const variables = config.vars || {};
 require(variables.ENVIRONMENT === 'production', 'ENVIRONMENT must be production.');
-require(config.workers_dev === false, 'workers_dev must be false.');
 let origin;
 try {
   origin = new URL(variables.APP_ORIGIN);
@@ -31,9 +30,17 @@ if (origin) {
   require(origin.origin === variables.APP_ORIGIN, 'APP_ORIGIN must contain only scheme and host.');
   require(!['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname) &&
     !origin.hostname.endsWith('example.com'), 'APP_ORIGIN must name the actual production domain.');
-  require(config.routes?.some(
-    (route) => route.custom_domain === true && route.pattern === origin.hostname,
-  ), 'Custom domain must match APP_ORIGIN.');
+  if (origin.hostname.endsWith('.workers.dev')) {
+    require(config.workers_dev === true, 'Enable workers_dev for the workers.dev origin.');
+    require(origin.hostname.split('.').length === 4 &&
+      origin.hostname.split('.')[0] ===
+        config.name, 'workers.dev origin must match the Worker name and account subdomain.');
+  } else {
+    require(config.workers_dev === false, 'Disable workers_dev when using a custom domain.');
+    require(config.routes?.some(
+      (route) => route.custom_domain === true && route.pattern === origin.hostname,
+    ), 'Custom domain must match APP_ORIGIN.');
+  }
 }
 const db = config.d1_databases?.find((binding) => binding.binding === 'DB');
 require(!!db &&

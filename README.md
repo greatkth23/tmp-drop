@@ -1,6 +1,12 @@
 # Personal Temporary Drop
 
-개인 기기와 임시 PC 사이에서 파일을 전달하는 서비스의 v0.2.0 구현입니다. React UI, Cloudflare Worker API, D1 원장, R2 전송·정리 로직을 연결했습니다. **로컬과 보호된 실제 Cloudflare staging에서 검증했으며, 실기기·대용량·운영 출시 검증은 남아 있습니다.**
+개인 기기와 임시 PC 사이에서 파일을 전달하는 서비스의 v0.2.0 구현입니다. React UI, Cloudflare Worker API, D1 원장, R2 전송·정리 로직을 연결했습니다. **실제 운영 주소 [drop.rmarkfcl.workers.dev](https://drop.rmarkfcl.workers.dev)에 배포하고 Chrome에서 인증·업로드·다운로드를 검증했습니다.** iOS와 GiB 단위 전송 검증은 남아 있습니다.
+
+## 운영 사이트 사용
+
+파일 받기는 4자리 PIN, 파일 올리기는 Authenticator의 6자리 코드로 인증합니다. 운영 인증 등록 안내는 이 PC의 저장소 밖 `C:\Users\great\.codex\private\tmp-drop\production-access.html`에 있습니다. PIN과 Authenticator 등록 키는 이 비공개 파일에서 확인합니다. 해당 파일과 같은 폴더의 비밀 JSON을 공유하거나 GitHub에 올리지 마세요.
+
+운영 DB·R2·비밀은 staging과 분리했습니다. 운영 페이지는 일반 브라우저에서 열 수 있으며 파일 목록과 업로드는 각각 인증을 요구합니다. 자세한 검증 결과는 [운영 검증 기록](docs/PRODUCTION_VALIDATION.md)을 참고하세요.
 
 ## 실행
 
@@ -74,6 +80,7 @@ npm run smoke:local
 | `migrations/`                   | D1 테이블·CHECK·인덱스·admission 및 quota 트리거      |
 | `tests/`                        | Cloudflare Workers 런타임 통합 테스트                 |
 | `scripts/`                      | 로컬 인증 생성, 코드 조회, HTTP smoke, 운영 설정 검사 |
+| `docs/PRODUCTION_VALIDATION.md` | 실제 운영 배포·브라우저·API 검증 및 남은 제한         |
 | `docs/API.md`                   | 현재 API 계약                                         |
 | `docs/OPERATIONS.md`            | 운영 준비·비밀 교체·장애 대응                         |
 | `docs/IMPLEMENTATION_STATUS.md` | 계획 대비 구현·검증·미완료 구분                       |
@@ -87,4 +94,4 @@ R2에 part가 저장되었는데 응답 또는 D1 기록이 불확실하면 List
 
 브라우저 새로고침·재시작 후 업로드 복구, iOS 백그라운드 전송, 실제 `.shortcut` 설치 파일은 제공하지 않습니다. iPhone 경로는 API와 안내를 구현했으며 실기기 시험이 필요합니다. Cloudflare limits·비용, 1/5/16/32 GiB 전송, 대규모 정리·복원 검증은 출시 전 남은 작업입니다.
 
-staging Worker·D1·비공개 R2와 lifecycle 설정을 만들고 배포했습니다. 모든 staging 페이지·API는 별도 `X-Staging-Token`을 요구합니다. 로컬 비밀과 staging 비밀은 서로 다릅니다. 직접 주소를 열어 404가 나오는 것은 접근 제한의 정상 동작입니다. 운영 배포와 GitHub CI 실행은 아직 수행하지 않았습니다. 증거와 남은 항목은 `docs/STAGING_VALIDATION.md`와 `docs/IMPLEMENTATION_STATUS.md`를 확인하세요.
+staging의 모든 페이지·API는 별도 `X-Staging-Token`을 요구하므로 직접 주소를 열면 404가 나옵니다. 운영은 별도 Worker `drop`으로 배포했습니다. 증거와 남은 항목은 `docs/STAGING_VALIDATION.md`, `docs/PRODUCTION_VALIDATION.md`, `docs/IMPLEMENTATION_STATUS.md`를 확인하세요.

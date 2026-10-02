@@ -1,11 +1,11 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "personal-temporary-drop-production",
+  "name": "drop",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-02",
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": false,
-  "routes": [{ "pattern": "drop.example.com", "custom_domain": true }],
+  "workers_dev": true,
+  "preview_urls": false,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
@@ -23,7 +23,7 @@
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "temporary-drop-production" }],
   "vars": {
     "ENVIRONMENT": "production",
-    "APP_ORIGIN": "https://drop.example.com",
+    "APP_ORIGIN": "https://drop.rmarkfcl.workers.dev",
     "R2_BUCKET_NAME": "temporary-drop-production",
     "R2_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
     "TOTP_SECRET_VERSION": "1",

@@ -1,6 +1,18 @@
 # 계획 대비 구현 현황
 
-기준일 2026-10-02 · 구현 v0.2.0. Windows/Node 24, 로컬 Workers·D1·R2, 보호된 실제 Cloudflare staging에서 검증했습니다. Safari·iPhone·운영 환경의 결과로 일반화하지 않습니다.
+기준일 2026-10-03 · 구현 v0.2.0. Windows/Node 24, 로컬 Workers·D1·R2, 보호된 staging 및 별도 운영 환경에서 검증했습니다. Safari·iPhone·GiB 단위 전송의 결과로 일반화하지 않습니다.
+
+## 운영 배포와 실제 사이트 검증
+
+- `https://drop.rmarkfcl.workers.dev`에 운영 Worker를 배포했습니다. D1·비공개 R2·서명 키·TOTP·PIN은 staging과 분리했습니다.
+- 실제 Chrome에서 100바이트·1 MiB·64 MiB+1 파일을 선택·업로드·다운로드했고 SHA-256이 일치했습니다.
+- 운영 API의 인증 경계, signed GET·Range·만료, 단축어 signed PUT·조건부 CopyObject·기기 폐기, 원장과 quota 일치를 확인했습니다.
+- 실제 2026-10-03 00:30 KST cron에서 취소 요청한 시험 업로드 2개가 DELETED로 정리됐고 자동 보고의 READY 객체 누락은 0입니다.
+- 320/390px Chrome 화면의 수평 overflow, 기본 신뢰/기억 OFF, 관리 재인증 화면, 종료 대화상자의 Escape와 포커스 복귀를 확인했습니다.
+- 보관 기간 선택과 옆 안내를 동기화했고 LF 줄바꿈을 고정해 Windows와 CI의 포맷 검사를 정리했습니다. 운영 설정 검사와 원격 smoke의 경로를 현재 저장소 구조에 맞췄습니다.
+- 운영 Authenticator 등록 도구와 비공개 HTML을 추가했습니다. 원격 smoke의 64 MiB Node 업로드는 이 PC에서 시간 초과가 있었으므로, 실제 브라우저 업로드를 독립 API 다운로드 검증에 재사용했습니다.
+
+세부 증거는 `PRODUCTION_VALIDATION.md`, `PRODUCTION_SMOKE_RESULT.json`에 있습니다.
 
 ## 이번 구현
 
@@ -34,7 +46,7 @@
 
 | 계획 ID           | 현재 상태                                                                         | 남은 조건                                                                |
 | ----------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| I01–I04 / I08     | 로컬 실행, staging 리소스 분리·원격 schema·배포, CI 파일                          | Git 원격 연결·CI 실행, 운영 도메인·production 배포, D1 복원 drill        |
+| I01–I04 / I08     | 로컬 실행, staging/production 분리·원격 schema·배포, Git 원격 연결·CI 파일        | D1 복원 drill                                                            |
 | I05               | shared schema·DTO·API 문서                                                        | OpenAPI 생성                                                             |
 | I06 / I07         | R2 어댑터·서명·실제 CopyObject·ListParts 검증                                     | 원격 로그 수집·민감 정보 수집 설정 audit                                 |
 | A01–A10           | scope·Origin/CSRF·TOTP replay·rate limit·기기·관리 grant, 원격 cookie/폐기        | RFC 시간 벡터·대규모 기기 목록·시간 경계 추가 시험                       |
@@ -45,12 +57,12 @@
 | L01 / L02         | 삭제 lease·재시도·정확한 quota 해제, 실제 lifecycle                               | 삭제 중 DB/R2 장애, 다량 동시 cron과 원격 지연 측정                      |
 | L03 / L04         | 자동 보고·orphan paging/grace·quota 교차/수정, 별도 TOTP 삭제                     | 실제 24시간 grace 관측, 대규모 R2 paging, D1 복원과 정합성 drill         |
 | F01–F10           | 세 화면·gate·queue·기기·dialog·모바일 CSS·offline                                 | Safari/iPhone/iPad, VoiceOver·키보드 전체 흐름·대비 audit                |
-| O01–O06 / S01–S08 | 로컬 bootstrap, 독립 staging 검증, 비밀 교체·장애 문서                            | 운영 TOTP 등록 도구, 경고·예산·복원, 대용량 CPU/메모리/비용, 출시 인수   |
+| O01–O06 / S01–S08 | 로컬 bootstrap, staging/production 검증, 운영 TOTP 등록, 비밀 교체·장애 문서      | 경고·예산·복원, 대용량 CPU/메모리/비용, 확대 검증                        |
 
 ## 다음 순서
 
 1. iPhone/iPad foreground에서 단축어 API를 시험하고 실제 설치 파일·사용 안내를 만듭니다. 실기기를 통한 사용자 검증이 필요합니다.
 2. 1/5/16/32 GiB의 SHA-256, CPU·메모리·시간·R2/D1 작업량을 측정합니다. 회선 단절·delete 장애·다중 cron·cursor 부하를 함께 검사합니다.
-3. 운영 TOTP 등록, 예산/장애 경고, D1 복원 drill, 접근성 audit, Git/CI와 production 인수 후 출시합니다.
+3. 예산/장애 경고, D1 복원 drill, 접근성 전체 audit와 운영 확대 검증을 진행합니다.
 
-v0.2는 보호된 staging까지 검증한 구현입니다. 완성된 운영 v1은 아닙니다.
+v0.2의 기본 파일 전송은 운영 배포와 실제 웹사이트 검증까지 완료했습니다. 실기기·GiB 단위 전송·복원·경고와 예산 등 운영 v1의 확대 검증은 남아 있습니다.

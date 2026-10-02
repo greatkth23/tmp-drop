@@ -1,0 +1,24 @@
+{
+  "origin": "https://drop.rmarkfcl.workers.dev",
+  "verifiedAt": "2026-10-02T15:36:49.109Z",
+  "files": [
+    {
+      "filename": "브라우저-검증.txt",
+      "bytes": 100,
+      "sha256": "d88b196d70a3aedd068108913decbbf7fce84aaea4cd335211e2939a4e4f92ef",
+      "matchesOriginal": true
+    },
+    {
+      "filename": "브라우저-검증.bin",
+      "bytes": 1048576,
+      "sha256": "16c7f1d8a38b4b84560e558ab03b13c82e2ff374d87eaacb4df22f03604e7a4f",
+      "matchesOriginal": true
+    },
+    {
+      "filename": "브라우저-64MiB+1.bin",
+      "bytes": 67108865,
+      "sha256": "db06a3cba93535048b096474d502e91c737410edda4ff81abcfc93e82cc922e9",
+      "matchesOriginal": true
+    }
+  ]
+}

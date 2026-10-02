@@ -553,7 +553,7 @@ function UploadPage({
             <hr />
             <div className="stat-row">
               <span>기본 보관</span>
-              <strong>완료 후 24시간</strong>
+              <strong>완료 후 {retentionText(retention)}</strong>
             </div>
             <div className="stat-row">
               <span>웹 파일 크기</span>

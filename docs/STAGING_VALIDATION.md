@@ -6,10 +6,10 @@
 
 | 항목      | 값                                                                  |
 | --------- | ------------------------------------------------------------------- |
-| 계정      | 전용 staging 계정 (계정 정보 생략)                                      |
+| 계정      | 전용 staging 계정 (계정 정보 생략)                                  |
 | Worker    | personal-temporary-drop-staging                                     |
 | 주소      | https://personal-temporary-drop-staging.rmarkfcl.workers.dev        |
-| D1        | temporary-drop-staging, APAC, (staging 환경 설정 참조)  |
+| D1        | temporary-drop-staging, APAC, (staging 환경 설정 참조)              |
 | R2        | temporary-drop-staging, Standard, r2.dev 공개 접근 비활성           |
 | 접근 제한 | API·UI·정적 자산에 X-Staging-Token 필요. secret 미설정 시에도 404   |
 | 비밀      | 로컬과 분리. R2 키는 이 버킷의 Object Read & Write, 2026-11-01 만료 |
