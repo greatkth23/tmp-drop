@@ -1,0 +1,32 @@
+name: Build signed iPhone shortcut
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/build-shortcut.py
+      - .github/workflows/shortcut.yml
+permissions:
+  contents: read
+jobs:
+  sign:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build unsigned credential-free template
+        run: python scripts/build-shortcut.py
+      - name: Sign with Apple Shortcuts
+        run: |
+          shortcuts sign --mode anyone --input .wrangler/shortcuts/Temporary-Drop.unsigned.plist --output .wrangler/shortcuts/Temporary-Drop.shortcut
+          test -s .wrangler/shortcuts/Temporary-Drop.shortcut
+          shasum -a 256 .wrangler/shortcuts/Temporary-Drop.shortcut > .wrangler/shortcuts/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: temporary-drop-shortcut
+          path: .wrangler/shortcuts/
+          if-no-files-found: error
+          retention-days: 14
