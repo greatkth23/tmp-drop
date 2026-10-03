@@ -288,6 +288,9 @@ describe('upload batches and selected file actions', () => {
     expect((await another.request(ticket.url)).status).toBe(404);
     const zip = await b.request(ticket.url);
     expect(zip.headers.get('Content-Type')).toBe('application/zip');
+    expect(decodeURIComponent(zip.headers.get('Content-Disposition')!)).toContain(
+      '사진.png 외 1개.zip',
+    );
     const body = new Uint8Array(await zip.arrayBuffer()),
       text = new TextDecoder().decode(body);
     expect(text).toContain('사진.png');

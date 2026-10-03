@@ -1,3 +1,4 @@
+import { archiveFilename } from '../shared/file-labels';
 import { Hono } from 'hono';
 import type { AppContext, AppEnv, FileRow } from './types';
 import { fileSelectionSchema, disposition } from '../shared/contracts';
@@ -97,7 +98,11 @@ fileActions.get('/api/archives/:token', async (c) => {
   return new Response(archiveStream(c.env.BUCKET, files), {
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': disposition(`drop-${new Date().toISOString().slice(0, 10)}.zip`),
+      'Content-Disposition': disposition(
+        archiveFilename(
+          files.map((f) => ({ id: f.id, filename: f.filename, completedAt: f.completed_at! })),
+        ),
+      ),
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
     },

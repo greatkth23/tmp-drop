@@ -1,3 +1,4 @@
+import { archiveFilename } from '../../../shared/file-labels';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { AuthStatus, FileSummary } from '../../../shared/contracts';
@@ -188,7 +189,7 @@ export function DownloadPage({
       });
       const anchor = document.createElement('a');
       anchor.href = result.url;
-      anchor.download = 'drop.zip';
+      anchor.download = archiveFilename(targets);
       document.body.append(anchor);
       anchor.click();
       anchor.remove();

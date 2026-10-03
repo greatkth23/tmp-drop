@@ -1,3 +1,4 @@
+import { fileGroupLabel } from '../../../shared/file-labels';
 import { canPreviewImage } from '../../../shared/preview';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FileSummary } from '../../../shared/contracts';
@@ -148,7 +149,7 @@ function FileGroup(props: GroupedFilesProps) {
   const count = files.filter((f) => selected.has(f.id)).length;
   const latest = Math.max(...files.map((f) => f.completedAt));
   const expiresAt = Math.min(...files.map((f) => f.expiresAt));
-  const name = dateTime(latest) + ' 업로드 묶음';
+  const name = fileGroupLabel(files);
   return (
     <section className="file-group">
       <div
