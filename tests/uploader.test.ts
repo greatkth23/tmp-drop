@@ -214,3 +214,84 @@ it('retains uncertain finalization credentials when access is ended and reflects
   engine.markDeleted('fixture');
   expect(engine.getSnapshot()[0].resultDeleted).toBe(true);
 });
+
+it('clears only completed or cancelled history and preserves pending and recovery work', async () => {
+  const engine = new Engine();
+  engine.add([new File(['done'], 'done.txt')], 21600);
+  engine.start();
+  await vi.waitFor(() => expect(engine.getSnapshot()[0].state).toBe('ready'));
+  engine.add([new File(['wait'], 'wait.txt')], 21600);
+  const waiting = engine.getSnapshot().find((i) => i.name === 'wait.txt')!;
+  apiMocks.mutate.mockClear();
+  engine.clearHistory();
+  expect(engine.getSnapshot()).toHaveLength(1);
+  expect(engine.getSnapshot()[0]).toMatchObject({
+    key: waiting.key,
+    state: 'queued',
+    retention: 21600,
+  });
+  expect(apiMocks.mutate).not.toHaveBeenCalled();
+  const { isTransferHistory } = await import('../src/uploader');
+  for (const state of [
+    'failed',
+    'needs_auth',
+    'cancel_pending',
+    'finalizing',
+    'offline',
+    'retrying',
+  ] as const)
+    expect(isTransferHistory({ state })).toBe(false);
+  expect(isTransferHistory({ state: 'cancelled' })).toBe(true);
+});
+
+it('renders pending and failed uploads without completed history and defaults new files to six hours', async () => {
+  const { createElement } = await import('react');
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  const { UploadPage } = await import('../src/features/upload/UploadPage');
+  const auth = {
+    uploadAuth: 'trusted',
+    deviceName: 'Test',
+    limits: { webMax: 32 * 1024 ** 3 },
+  } as import('../shared/contracts').AuthStatus;
+  const base = { size: 3, retention: 86400, approved: false, progress: 0, bytes: 0, speed: 0 };
+  const queue: import('../src/uploader').QueueView[] = [
+    { ...base, key: 'done', name: 'completed-history-only.txt', state: 'ready' },
+    { ...base, key: 'waiting', name: 'new-waiting.txt', state: 'queued' },
+    {
+      ...base,
+      key: 'failed',
+      name: 'recover-this.txt',
+      state: 'failed',
+      error: '전송 확인 필요',
+      recovery: 'restart',
+    },
+  ];
+  const html = renderToStaticMarkup(
+    createElement(UploadPage, {
+      auth,
+      queue,
+      refresh: async () => auth,
+      offset: 0,
+      ending: () => {},
+      navigate: () => {},
+      connected: true,
+    }),
+  );
+  expect(html).toContain('new-waiting.txt');
+  expect(html).toContain('recover-this.txt');
+  expect(html).not.toContain('completed-history-only.txt');
+  expect(html).toContain('새로 시작');
+  expect(html).toContain('value="21600" selected=""');
+  expect(html).toContain('value="86400" selected=""');
+  expect(html.indexOf('1개 파일 업로드 시작')).toBeLessThan(html.indexOf('new-waiting.txt'));
+});
+it('suggests reducing the selection when no terminal history can be cleared', () => {
+  const engine = new Engine();
+  expect(() =>
+    engine.add(
+      Array.from({ length: 51 }, (_, i) => new File(['x'], i + '.txt')),
+      21600,
+    ),
+  ).toThrow('선택 개수를 줄여 주세요');
+  expect(engine.getSnapshot()).toHaveLength(0);
+});

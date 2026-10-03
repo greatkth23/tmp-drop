@@ -137,7 +137,7 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
                   <Example
                     label="JSON 필드"
                     value={
-                      'filename: 텍스트 → 파일명 변수\nsizeBytes: 숫자 → 바이트 크기 변수\nmime: 텍스트 → application/octet-stream\nretentionSeconds: 숫자 → 86400\nbatchKey: 텍스트 → 묶음 ID 변수'
+                      'filename: 텍스트 → 파일명 변수\nsizeBytes: 숫자 → 바이트 크기 변수\nmime: 텍스트 → application/octet-stream\nretentionSeconds: 숫자 → 21600\nbatchKey: 텍스트 → 묶음 ID 변수'
                     }
                   />
                 </>
@@ -169,8 +169,9 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
             파일부터 시험하세요.
           </li>
           <li>
-            기본 보관은 24시간입니다. retentionSeconds는 3600(1시간), 21600(6시간), 86400(24시간),
-            259200(3일) 중 선택하세요.
+            새 설정의 기본 보관은 6시간입니다. 기존 단축어는 retentionSeconds를 21600으로
+            변경하세요. retentionSeconds는 3600(1시간), 21600(6시간), 86400(24시간), 259200(3일) 중
+            선택하세요.
           </li>
           <li>
             5 GiB는 API 설정 상한이며 아이폰에서 검증한 크기가 아닙니다. 잠금·앱 전환 중 전송은

@@ -290,7 +290,7 @@ export function DownloadPage({
               )}
             </div>
           </div>
-          <div className="section-head">
+          <div className="section-head download-heading">
             <div>
               <strong>
                 불러온 파일 <span className="count">{visible.length}</span>
@@ -299,24 +299,9 @@ export function DownloadPage({
                 최근 완료순{lastChecked > 0 && ` · ${dateTime(lastChecked)} 확인`}
               </span>
             </div>
-            <button className="btn quiet small" disabled={loading} onClick={() => void load()}>
-              <Icon name="refresh" size={18} />
-              {loading ? '확인 중…' : '새로고침'}
-            </button>
-          </div>
-          <ErrorText error={error} />
-          {notice && (
-            <p className="notice" role="status">
-              <Icon name="check" size={18} />
-              {notice}
-            </p>
-          )}
-          {visible.length > 0 && (
-            <div className="selection-bar">
-              <span role="status">
-                {chosen.length}개 선택 · {bytes(chosen.reduce((sum, f) => sum + f.sizeBytes, 0))}
-              </span>
-              <div className="button-row">
+            <div className="button-row list-actions">
+              {' '}
+              <>
                 <button
                   className="btn secondary small"
                   disabled={!chosen.length || zipping || !connected}
@@ -336,7 +321,26 @@ export function DownloadPage({
                   <Icon name="trash" size={17} />
                   선택 삭제
                 </button>
-              </div>
+              </>{' '}
+              <button className="btn quiet small" disabled={loading} onClick={() => void load()}>
+                <Icon name="refresh" size={18} />
+                {loading ? '확인 중…' : '새로고침'}
+              </button>
+            </div>
+          </div>
+          <ErrorText error={error} />
+          {notice && (
+            <p className="notice" role="status">
+              <Icon name="check" size={18} />
+              {notice}
+            </p>
+          )}
+          {visible.length > 0 && (
+            <div className="selection-bar">
+              <span role="status">
+                {chosen.length}개 선택 · {bytes(chosen.reduce((sum, f) => sum + f.sizeBytes, 0))}
+              </span>
+
               <div className="selection-all">
                 <span>불러온 파일 전체 선택</span>
                 <SelectBox

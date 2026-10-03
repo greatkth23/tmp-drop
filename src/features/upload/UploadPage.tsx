@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { AuthStatus } from '../../../shared/contracts';
 import { POLICY } from '../../../shared/contracts';
 import { message } from '../../api';
-import { engine } from '../../uploader';
+import { engine, isTransferHistory } from '../../uploader';
 import type { QueueState, QueueView } from '../../uploader';
 import { useNow } from '../../hooks/useAuthStatus';
 import { bytes, countdown, dateTime, retentionText } from '../../lib/format';
@@ -31,7 +31,9 @@ export function UploadPage({
     expired =
       auth.uploadAuth === 'temporary' && !!auth.uploadExpiresAt && auth.uploadExpiresAt <= now;
   const canUpload = connected && auth.uploadAuth !== 'none' && !expired;
-  const [retention, setRetention] = useState(86400),
+  const [retention, setRetention] = useState(21600),
+    [view, setView] = useState<'current' | 'history'>('current'),
+    [clearHistory, setClearHistory] = useState(false),
     [error, setError] = useState(''),
     [drag, setDrag] = useState(false),
     [cancel, setCancel] = useState<QueueView | null>(null),
@@ -44,11 +46,15 @@ export function UploadPage({
   const active = queue.filter(
     (i) => !['queued', 'needs_auth', 'ready', 'cancelled', 'failed'].includes(i.state),
   );
+  const current = queue.filter((i) => !isTransferHistory(i));
+  const history = queue.filter(isTransferHistory).slice().reverse();
+  const shown = view === 'current' ? current : history;
   const add = (files: File[]) => {
     if (!canUpload) return;
     setError('');
     try {
       engine.add(files, retention);
+      setView('current');
     } catch (e) {
       setError(message(e));
     }
@@ -126,26 +132,9 @@ export function UploadPage({
               )}
             </div>
           </div>
-          {pending.length > 0 && (
-            <div className="start-bar">
-              <div>
-                <strong>
-                  {pending.length}개 파일 · {bytes(pending.reduce((sum, i) => sum + i.size, 0))}
-                </strong>
-                <span>보관 기간을 확인한 뒤 시작하세요.</span>
-              </div>
-              <button
-                className="btn primary"
-                disabled={!canUpload}
-                onClick={() => engine.start(pending.map((i) => i.key))}
-              >
-                {pending.length}개 파일 업로드 시작
-                <Icon name="arrow" />
-              </button>
-            </div>
-          )}
+
           <section
-            className={`composer panel ${queue.length ? 'compact' : ''} ${drag ? 'drag' : ''}`}
+            className={`upload-composer ${drag ? 'drag' : ''}`}
             onDragOver={(e) => {
               e.preventDefault();
               if (canUpload) setDrag(true);
@@ -157,43 +146,44 @@ export function UploadPage({
               add([...e.dataTransfer.files]);
             }}
           >
-            {!queue.length && (
-              <>
-                <div className="composer-illustration">
-                  <span className="paper paper-back" />
-                  <span className="paper paper-front">
-                    <Icon name="file" size={40} />
+            <div className="upload-toolbar">
+              <div className="composer-controls">
+                <button
+                  className="btn secondary"
+                  disabled={!canUpload}
+                  onClick={() => picker.current?.click()}
+                >
+                  <Icon name="plus" />
+                  파일 추가
+                </button>
+                <label className="retention">
+                  새 파일 보관
+                  <select value={retention} onChange={(e) => setRetention(Number(e.target.value))}>
+                    {POLICY.retention.map((v) => (
+                      <option key={v} value={v}>
+                        {retentionText(v)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {pending.length > 0 && (
+                <div className="upload-start">
+                  <span className="upload-total">
+                    {pending.length}개 · {bytes(pending.reduce((sum, i) => sum + i.size, 0))}
                   </span>
-                  <span className="paper-arrow">
-                    <Icon name="upload" size={24} />
-                  </span>
+                  <button
+                    className="btn primary"
+                    disabled={!canUpload}
+                    onClick={() => engine.start(pending.map((i) => i.key))}
+                  >
+                    {pending.length}개 파일 업로드 시작 <Icon name="arrow" />
+                  </button>
                 </div>
-                <h2>옮길 파일을 골라주세요.</h2>
-                <p className="muted">여기에 놓거나, 아래에서 선택하세요.</p>
-              </>
-            )}
-            <div className="composer-controls">
-              <button
-                className={`btn ${queue.length ? 'secondary' : 'primary'}`}
-                disabled={!canUpload}
-                onClick={() => picker.current?.click()}
-              >
-                <Icon name="plus" />
-                {queue.length ? '파일 추가' : '파일 선택'}
-              </button>
-              <label className="retention">
-                완료 후 보관
-                <select value={retention} onChange={(e) => setRetention(Number(e.target.value))}>
-                  {POLICY.retention.map((v) => (
-                    <option key={v} value={v}>
-                      {retentionText(v)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              )}
             </div>
             <p className="composer-help">
-              파일당 최대 {bytes(auth.limits.webMax)} · 선택 후 확인하고 시작합니다.
+              파일당 최대 {bytes(auth.limits.webMax)} · 보관 시간은 업로드 완료 후 시작됩니다.
             </p>
             <input
               ref={picker}
@@ -207,30 +197,71 @@ export function UploadPage({
             />
           </section>
           <ErrorText error={error} />
-          {queue.length > 0 && (
-            <>
-              <div className="section-head">
-                <h2>
-                  전송 목록 <span className="count">{queue.length}</span>
-                </h2>
-                <span>
-                  대기 {queue.filter((i) => ['queued', 'needs_auth'].includes(i.state)).length} ·
-                  진행 {active.length} · 완료 {queue.filter((i) => i.state === 'ready').length}
-                </span>
-              </div>
-              <div className="panel queue">
-                {queue.map((i) => (
-                  <UploadItem
-                    key={i.key}
-                    item={i}
-                    cancel={() => setCancel(i)}
-                    reauth={() => setReauth(true)}
-                    receive={() => navigate('download')}
-                  />
-                ))}
-              </div>
-            </>
+          <div className="transfer-heading">
+            <div className="transfer-views" role="group" aria-label="전송 목록 보기">
+              <button
+                className="transfer-view"
+                aria-pressed={view === 'current'}
+                onClick={() => setView('current')}
+              >
+                현재 업로드 <span className="count">{current.length}</span>
+              </button>
+              <button
+                className="transfer-view"
+                aria-pressed={view === 'history'}
+                onClick={() => setView('history')}
+              >
+                전송 내역 <span className="count">{history.length}</span>
+              </button>
+            </div>
+            {view === 'history' && history.length > 0 && (
+              <button className="btn quiet small" onClick={() => setClearHistory(true)}>
+                내역 비우기
+              </button>
+            )}
+          </div>
+          {view === 'history' && (
+            <p className="transfer-scope">
+              이 탭에서 완료·취소한 전송입니다. 새로고침하면 초기화되며, 내역을 비워도 보관 중인
+              파일은 삭제되지 않습니다.
+            </p>
           )}
+          <section
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              add([...e.dataTransfer.files]);
+            }}
+            className="queue transfer-list"
+            aria-label={view === 'current' ? '현재 업로드' : '전송 내역'}
+          >
+            {shown.map((i) => (
+              <UploadItem
+                key={i.key}
+                item={i}
+                cancel={() => setCancel(i)}
+                reauth={() => setReauth(true)}
+                receive={() => navigate('download')}
+              />
+            ))}
+            {!shown.length && (
+              <div className="transfer-empty">
+                <Icon name={view === 'history' ? 'clock' : 'upload'} size={28} />
+                <div>
+                  <strong>
+                    {view === 'history'
+                      ? '전송 내역이 없습니다.'
+                      : '추가한 파일이 여기에 표시됩니다.'}
+                  </strong>
+                  <p>
+                    {view === 'history'
+                      ? '완료되거나 취소된 파일을 여기서 확인할 수 있습니다.'
+                      : '위에서 파일을 추가하거나 이 영역에 끌어 놓으세요.'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
           {active.length > 0 && (
             <p className="transfer-help">
               <Icon name="warning" size={16} />
@@ -238,6 +269,28 @@ export function UploadPage({
             </p>
           )}
         </>
+      )}
+      {clearHistory && (
+        <Dialog title="전송 내역을 비울까요?" onClose={() => setClearHistory(false)}>
+          <p>
+            이 탭의 완료·취소 내역 {history.length}개를 비웁니다. 업로드 중인 파일과 서버에 보관
+            중인 파일은 유지됩니다.
+          </p>
+          <div className="dialog-actions">
+            <button className="btn secondary" onClick={() => setClearHistory(false)}>
+              취소
+            </button>
+            <button
+              className="btn primary"
+              onClick={() => {
+                engine.clearHistory();
+                setClearHistory(false);
+              }}
+            >
+              내역 비우기
+            </button>
+          </div>
+        </Dialog>
       )}
       {reauth && (
         <Dialog
@@ -307,28 +360,18 @@ function UploadItem({
   const queued = ['queued', 'needs_auth'].includes(item.state),
     progressing = ['uploading', 'retrying', 'offline', 'finalizing'].includes(item.state);
   return (
-    <article className="upload-row">
-      <div className="file-top">
-        <FileIdentity
-          name={item.name}
-          previewFile={item.sourceFile}
-          detail={
-            <>
-              {bytes(item.size)} · 완료 후 {retentionText(item.retention)} 보관
-            </>
-          }
-        />
-        <span
-          className={`status ${item.state === 'ready' ? 'success' : item.state === 'failed' ? 'danger-text' : item.state === 'offline' || item.state === 'needs_auth' ? 'warning-text' : ''}`}
-        >
-          {item.state === 'ready' && <Icon name="check" size={16} />}{' '}
-          {item.resultDeleted
-            ? '서버 파일 삭제됨'
-            : item.state === 'queued' && item.approved
-              ? '순서 대기'
-              : labels[item.state]}
-        </span>
-      </div>
+    <article className="upload-row transfer-row">
+      <FileIdentity name={item.name} previewFile={item.sourceFile} detail={bytes(item.size)} />
+      <span
+        className={`status ${item.state === 'ready' ? 'success' : item.state === 'failed' ? 'danger-text' : item.state === 'offline' || item.state === 'needs_auth' ? 'warning-text' : ''}`}
+      >
+        {item.state === 'ready' && <Icon name="check" size={16} />}{' '}
+        {item.resultDeleted
+          ? '서버 파일 삭제됨'
+          : item.state === 'queued' && item.approved
+            ? '순서 대기'
+            : labels[item.state]}
+      </span>
       {progressing && (
         <div className="progress-section">
           <div
@@ -358,7 +401,7 @@ function UploadItem({
         </div>
       )}
       <ErrorText error={item.error} />
-      <div className="row-footer">
+      <div className="transfer-retention">
         {queued ? (
           <label className="retention">
             보관 기간
@@ -382,56 +425,58 @@ function UploadItem({
                 ? '이 탭의 전송 이력입니다.'
                 : item.state === 'finalizing'
                   ? '서버 확인 후 다른 기기에서 받을 수 있습니다.'
-                  : ''}
+                  : item.state === 'cancelled'
+                    ? '전송 취소됨'
+                    : `완료 후 ${retentionText(item.retention)} 보관`}
           </span>
         )}
-        <div className="button-row">
-          {item.state === 'ready' && !item.resultDeleted && (
-            <button className="btn small secondary" onClick={receive}>
-              파일 받기 <Icon name="arrow" size={16} />
+      </div>
+      <div className="button-row transfer-actions">
+        {item.state === 'ready' && !item.resultDeleted && (
+          <button className="btn small secondary" onClick={receive}>
+            파일 받기 <Icon name="arrow" size={16} />
+          </button>
+        )}
+        {item.state === 'needs_auth' && (
+          <button className="btn small secondary" onClick={reauth}>
+            다시 인증
+          </button>
+        )}
+        {queued || ['ready', 'cancelled'].includes(item.state) ? (
+          <button className="btn small quiet" onClick={() => engine.remove(item.key)}>
+            {isTransferHistory(item) ? '내역에서 제거' : '목록에서 제거'}
+          </button>
+        ) : item.recovery === 'check_result' || item.recovery === 'confirm_cancel' ? (
+          <>
+            <button
+              className="btn small secondary"
+              disabled={item.checking}
+              onClick={() => void engine.checkResult(item.key)}
+            >
+              {item.checking ? '확인 중…' : '결과 확인'}
             </button>
-          )}
-          {item.state === 'needs_auth' && (
-            <button className="btn small secondary" onClick={reauth}>
-              다시 인증
-            </button>
-          )}
-          {queued || ['ready', 'cancelled'].includes(item.state) ? (
-            <button className="btn small quiet" onClick={() => engine.remove(item.key)}>
-              {item.state === 'ready' ? '이 화면에서 지우기' : '목록에서 제거'}
-            </button>
-          ) : item.recovery === 'check_result' || item.recovery === 'confirm_cancel' ? (
-            <>
-              <button
-                className="btn small secondary"
-                disabled={item.checking}
-                onClick={() => void engine.checkResult(item.key)}
-              >
-                {item.checking ? '확인 중…' : '결과 확인'}
-              </button>
-              {item.recovery === 'confirm_cancel' && (
-                <button className="btn quiet small danger-text" onClick={cancel}>
-                  취소 확인
-                </button>
-              )}
-            </>
-          ) : item.state === 'failed' ? (
-            <>
-              <button className="btn small secondary" onClick={() => void engine.restart(item.key)}>
-                새로 시작
-              </button>
-              <button className="btn quiet small" onClick={cancel}>
+            {item.recovery === 'confirm_cancel' && (
+              <button className="btn quiet small danger-text" onClick={cancel}>
                 취소 확인
               </button>
-            </>
-          ) : (
-            !['finalizing', 'cancel_pending'].includes(item.state) && (
-              <button className="btn small quiet" onClick={cancel}>
-                업로드 취소
-              </button>
-            )
-          )}
-        </div>
+            )}
+          </>
+        ) : item.state === 'failed' ? (
+          <>
+            <button className="btn small secondary" onClick={() => void engine.restart(item.key)}>
+              새로 시작
+            </button>
+            <button className="btn quiet small" onClick={cancel}>
+              취소 확인
+            </button>
+          </>
+        ) : (
+          !['finalizing', 'cancel_pending'].includes(item.state) && (
+            <button className="btn small quiet" onClick={cancel}>
+              업로드 취소
+            </button>
+          )
+        )}
       </div>
     </article>
   );

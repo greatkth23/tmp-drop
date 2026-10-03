@@ -31,6 +31,8 @@ export interface QueueView {
   resultDeleted?: boolean;
   result?: FileSummary;
 }
+export const isTransferHistory = (item: Pick<QueueView, 'state'>) =>
+  ['ready', 'cancelled'].includes(item.state);
 interface QueueItem extends QueueView {
   file: File;
   batchKey?: string;
@@ -123,7 +125,11 @@ export class UploadEngine {
   }
   add(files: File[], retention: number) {
     if (this.items.length + files.length > 50)
-      throw new Error('한 번에 최대 50개 파일을 선택할 수 있습니다.');
+      throw new Error(
+        this.items.some(isTransferHistory)
+          ? '한 탭에 최대 50개 파일을 담을 수 있습니다. 선택 개수를 줄이거나 전송 내역을 비워 주세요.'
+          : '한 탭에 최대 50개 파일을 담을 수 있습니다. 선택 개수를 줄여 주세요.',
+      );
     for (const file of files) {
       if (file.size === 0 || file.size > POLICY.webMax)
         throw new Error('빈 파일 또는 32 GiB를 넘는 파일은 선택할 수 없습니다.');
@@ -154,6 +160,10 @@ export class UploadEngine {
       item.retention = retention;
       this.emit();
     }
+  }
+  clearHistory() {
+    this.items = this.items.filter((item) => !isTransferHistory(item));
+    this.emit();
   }
   remove(key: string) {
     const item = this.items.find((i) => i.key === key);

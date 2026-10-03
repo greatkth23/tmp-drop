@@ -1052,3 +1052,247 @@ footer > span:first-child {
     padding: 16px;
   }
 }
+
+/* Upload work stays separate from terminal history. */
+.upload-composer {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 12px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.upload-composer.drag {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+  background: var(--bg);
+}
+.upload-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+}
+.upload-toolbar .composer-controls {
+  margin: 0;
+  gap: 16px;
+  justify-content: flex-start;
+}
+.upload-start {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-left: auto;
+}
+.upload-total {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.upload-composer .composer-help {
+  margin: 8px 0 0;
+}
+.transfer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin-top: 24px;
+}
+.transfer-views {
+  display: flex;
+  gap: 24px;
+}
+.transfer-view {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 600;
+}
+.transfer-view[aria-pressed='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+.transfer-scope {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 12px 0;
+}
+.transfer-list {
+  overflow: visible;
+}
+.transfer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px 180px 220px;
+  gap: 8px 16px;
+  align-items: center;
+  min-height: 80px;
+  padding: 12px 8px;
+}
+.transfer-row > .file-identity {
+  grid-column: 1;
+  grid-row: 1;
+}
+.transfer-row > .status {
+  grid-column: 2;
+  grid-row: 1;
+}
+.transfer-retention {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+}
+.transfer-retention .retention {
+  gap: 8px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.transfer-retention .help {
+  font-size: 12px;
+}
+.transfer-actions {
+  grid-column: 4;
+  grid-row: 1;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.transfer-actions .btn {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.transfer-row > .progress-section {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0 0 0 52px;
+}
+.transfer-row .progress-meta {
+  margin-top: 8px;
+}
+.transfer-row > .error {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin: 0;
+}
+.transfer-row :is(button, select) {
+  scroll-margin-top: 200px;
+}
+.transfer-empty {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 32px 16px;
+}
+.transfer-empty strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+.transfer-empty p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.download-heading {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.list-actions {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+@media (max-width: 999px) {
+  .transfer-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .transfer-row > .status {
+    grid-column: 2;
+  }
+  .transfer-retention {
+    grid-column: 1;
+    grid-row: 2;
+    padding-left: 52px;
+  }
+  .transfer-actions {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .transfer-row > .progress-section {
+    grid-row: 3;
+  }
+  .transfer-row > .error {
+    grid-row: 4;
+  }
+}
+@media (max-width: 729px) {
+  .upload-toolbar .composer-controls {
+    flex-direction: row;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .upload-toolbar .retention {
+    font-size: 12px;
+    gap: 8px;
+  }
+  .upload-toolbar .btn {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .upload-start {
+    width: 100%;
+    gap: 8px;
+    justify-content: space-between;
+  }
+  .upload-total {
+    font-size: 12px;
+  }
+  .upload-start .btn {
+    white-space: normal;
+  }
+  .transfer-views {
+    gap: 16px;
+  }
+  .transfer-view {
+    font-size: 14px;
+  }
+  .transfer-row {
+    gap: 8px;
+    padding: 12px 0;
+  }
+  .transfer-row > .status {
+    font-size: 12px;
+  }
+  .transfer-retention {
+    grid-column: 1 / -1;
+  }
+  .transfer-actions {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: flex-start;
+    padding-left: 52px;
+  }
+  .transfer-row > .progress-section {
+    grid-row: 4;
+    margin-left: 0;
+  }
+  .transfer-row > .error {
+    grid-row: 5;
+  }
+  .list-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+  .list-actions .btn {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}

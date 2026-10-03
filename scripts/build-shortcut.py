@@ -75,7 +75,7 @@ valid_token = add('text.match', 'Validate token', text=txt(token), WFMatchTextPa
 start('Missing token', valid_token, 101)
 stop('Missing token', '먼저 내 기기에서 업로드 전용 토큰을 발급하고 단축어의 첫 번째 텍스트 액션에 붙여 넣으세요.')
 end('Missing token')
-retention = add('number', 'Retention seconds', WFNumberActionNumber='86400')
+retention = add('number', 'Retention seconds', WFNumberActionNumber='21600')
 shared = {'Type': 'ExtensionInput'}
 start('Missing files', shared, 101)
 stop('Missing files', '파일 또는 사진 앱에서 선택한 뒤 공유 → Temporary Drop을 실행하세요.')
