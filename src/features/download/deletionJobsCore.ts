@@ -58,7 +58,7 @@ export function createDeletionJobs(send: Send, markDeleted: (id: string) => void
                   error: failed.length
                     ? `${failed.length}개 파일을 삭제하지 못했습니다. ${failed[0].message || '목록에서 다시 확인해 주세요.'}`
                     : '',
-                  text: `${removed.length}개 파일을 목록에서 삭제했습니다.${results.some((r) => r.state === 'PENDING') ? ' 저장소 정리는 백그라운드에서 계속됩니다.' : ''}`,
+                  text: `${removed.length}개 파일을 목록에서 삭제했습니다.`,
                 }
               : job,
           );
