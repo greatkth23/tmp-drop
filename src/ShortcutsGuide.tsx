@@ -92,11 +92,28 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
         <div>
           <strong>현재는 직접 제작하는 방식입니다.</strong>
           <p>
-            설치용 단축어 파일은 아직 제공하지 않습니다. 서버 전송은 검증했으며 아이폰 실기기 시험은
-            남아 있습니다. 먼저 작은 파일로 시험하고 전송이 끝날 때까지 단축어를 화면에 유지하세요.
+            설치용 단축어 파일은 아직 제공하지 않습니다. 기존 단축어의 아이폰 업로드는 확인했습니다.
+            묶음 ID를 추가한 버전은 아이폰에서 다시 확인해 주세요. 먼저 작은 파일로 시험하고 전송이
+            끝날 때까지 단축어를 화면에 유지하세요.
           </p>
         </div>
       </div>
+      <section className="panel sidebar-card shortcut-guide">
+        <h2>한 번에 보낸 파일을 묶음으로 표시하기</h2>
+        <p>
+          기존 단축어의 각 항목 반복하기 바로 위에 임의의 숫자 액션 3개(1~2147483647)를 추가하세요.
+          텍스트 액션에서 batch-숫자1-숫자2-숫자3으로 연결하고 묶음 ID 변수로 저장합니다.
+        </p>
+        <p>
+          생성 POST의 JSON에 batchKey 필드를 텍스트 유형으로 추가하고 묶음 ID를 연결하세요. 한 번
+          실행할 때 모든 파일이 같은 묶음 ID를 사용해야 합니다. 기존 파일별 요청 키는 그대로
+          유지합니다.
+        </p>
+        <p>
+          이 설정을 추가한 뒤 업로드한 파일부터 묶음으로 표시됩니다. 기존 파일은 개별 항목으로
+          표시됩니다.
+        </p>
+      </section>
       <section className="panel sidebar-card shortcut-guide">
         <h2>단축어 액션 설정</h2>
         <p>
@@ -120,7 +137,7 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
                   <Example
                     label="JSON 필드"
                     value={
-                      'filename: 텍스트 → 파일명 변수\nsizeBytes: 숫자 → 바이트 크기 변수\nmime: 텍스트 → application/octet-stream\nretentionSeconds: 숫자 → 86400'
+                      'filename: 텍스트 → 파일명 변수\nsizeBytes: 숫자 → 바이트 크기 변수\nmime: 텍스트 → application/octet-stream\nretentionSeconds: 숫자 → 86400\nbatchKey: 텍스트 → 묶음 ID 변수'
                     }
                   />
                 </>

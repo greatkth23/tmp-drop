@@ -15,8 +15,8 @@ it('refreshes the entire loaded range after insertions and removals', async () =
     .mockResolvedValueOnce({ files: [file('new'), file('a')], nextCursor: 'changed', serverNow: 3 })
     .mockResolvedValueOnce({ files: [file('c'), file('d')], nextCursor: 'second', serverNow: 4 });
   expect((await readFilePages(2, signal)).files.map((f) => f.id)).toEqual(['new', 'a', 'c', 'd']);
-  expect(mocks.api.mock.calls[2][0]).toBe('/api/files');
-  expect(mocks.api.mock.calls[3][0]).toBe('/api/files?cursor=changed');
+  expect(mocks.api.mock.calls[2][0]).toBe('/api/file-groups');
+  expect(mocks.api.mock.calls[3][0]).toBe('/api/file-groups?cursor=changed');
 });
 it('deduplicates overlapping pages and stops at the end while safely encoding a cursor', async () => {
   mocks.api
@@ -26,7 +26,7 @@ it('deduplicates overlapping pages and stops at the end while safely encoding a 
   expect(result.files.map((f) => f.id)).toEqual(['a', 'b', 'c']);
   expect(result.nextCursor).toBeNull();
   expect(mocks.api).toHaveBeenCalledTimes(2);
-  expect(mocks.api.mock.calls[1][0]).toBe('/api/files?cursor=%2B%2F%3D');
+  expect(mocks.api.mock.calls[1][0]).toBe('/api/file-groups?cursor=%2B%2F%3D');
 });
 it('rejects a failed later page instead of returning an incomplete refreshed list', async () => {
   mocks.api

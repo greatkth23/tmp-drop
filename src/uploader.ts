@@ -32,6 +32,7 @@ export interface QueueView {
 }
 interface QueueItem extends QueueView {
   file: File;
+  batchKey?: string;
   id?: string;
   capability?: string;
   expiresAt?: number;
@@ -161,8 +162,10 @@ export class UploadEngine {
     keys = this.items.filter((i) => ['queued', 'needs_auth'].includes(i.state)).map((i) => i.key),
   ) {
     this.enabled = true;
+    const batchKey = crypto.randomUUID();
     this.items.forEach((i) => {
       if (!keys.includes(i.key) || !['queued', 'needs_auth'].includes(i.state)) return;
+      i.batchKey ||= batchKey;
       i.approved = true;
       if (i.state === 'needs_auth') {
         i.state = 'queued';
@@ -340,6 +343,7 @@ export class UploadEngine {
           {
             filename: item.name,
             sizeBytes: item.size,
+            batchKey: item.batchKey,
             mime: item.file.type || 'application/octet-stream',
             retentionSeconds: item.retention,
           },

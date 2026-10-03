@@ -80,6 +80,8 @@ shared = {'Type': 'ExtensionInput'}
 start('Missing files', shared, 101)
 stop('Missing files', '파일 또는 사진 앱에서 선택한 뒤 공유 → Temporary Drop을 실행하세요.')
 end('Missing files')
+batch_nonce = [add('number.random', 'Batch nonce ' + str(i), WFRandomNumberMinimum=1, WFRandomNumberMaximum=2147483647) for i in range(3)]
+batch_key = add('gettext', 'Batch key', WFTextActionText=txt('batch-', batch_nonce[0], '-', batch_nonce[1], '-', batch_nonce[2]))
 add('repeat.each', 'Each file start', GroupingIdentifier=uid('Each file'), WFControlFlowMode=0, WFInput=ref(shared))
 file = var('Repeat Item', 'WFFileContentItem')
 size = add('properties.files', 'File size', WFInput=ref(file), WFContentItemPropertyName='File Size')
@@ -94,7 +96,7 @@ filename = add('getitemname', 'Filename', WFInput=ref(file))
 nonce = [add('number.random', 'Request nonce ' + str(i), WFRandomNumberMinimum=1, WFRandomNumberMaximum=2147483647) for i in range(3)]
 created = add('downloadurl', 'Create upload', WFURL=ORIGIN + '/api/shortcut/uploads', WFHTTPMethod='POST', WFHTTPBodyType='JSON',
     WFHTTPHeaders=table([('Authorization', 0, txt('Bearer ', token)), ('Idempotency-Key', 0, txt('ios-', nonce[0], '-', nonce[1], '-', nonce[2])), ('Content-Type', 0, txt('application/json'))]),
-    WFJSONValues=table([('filename', 0, txt(filename)), ('sizeBytes', 1, txt(size)), ('mime', 0, txt('application/octet-stream')), ('retentionSeconds', 1, txt(retention))]))
+    WFJSONValues=table([('filename', 0, txt(filename)), ('sizeBytes', 3, txt(size)), ('mime', 0, txt('application/octet-stream')), ('retentionSeconds', 3, txt(retention)), ('batchKey', 0, txt(batch_key))]))
 check_error(created, 'Create failed')
 file_id = key(created, 'id', 'Upload ID')
 capability = key(created, 'capability', 'Upload capability')

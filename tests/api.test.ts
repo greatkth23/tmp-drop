@@ -10,6 +10,8 @@ import { TOTP } from 'otpauth';
 import worker, { app } from '../worker/index';
 import { pipeExact } from '../worker/storage';
 import { hash } from '../worker/crypto';
+import { selectionTarget } from '../worker/file-actions';
+import { archiveNames } from '../worker/archive';
 import { POLICY, sanitizeFilename, partBytes, disposition } from '../shared/contracts';
 import type { AuthStatus, UploadCreated } from '../shared/contracts';
 
@@ -83,6 +85,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   const tables = [
+    'download_archives',
     'idempotency_keys',
     'maintenance_jobs',
     'upload_parts',
@@ -131,6 +134,224 @@ function serviceContext() {
     executionCtx: createExecutionContext(),
   });
 }
+
+describe('upload batches and selected file actions', () => {
+  async function start(trust = true) {
+    const b = new Browser();
+    await b.login(trust);
+    expect((await b.request('/api/download/unlock', 'POST', { pin: '4827' })).status).toBe(200);
+    await b.status();
+    return b;
+  }
+  async function ready(b: Browser, batchKey?: string, filename = '사진.png') {
+    const res = await b.request(
+      '/api/uploads',
+      'POST',
+      {
+        filename,
+        sizeBytes: 3,
+        mime: 'application/octet-stream',
+        retentionSeconds: 86400,
+        ...(batchKey ? { batchKey } : {}),
+      },
+      { 'Idempotency-Key': crypto.randomUUID() },
+    );
+    expect(res.status).toBe(201);
+    const u = await res.json<UploadCreated>(),
+      h = { Authorization: 'Upload ' + u.capability };
+    expect(
+      (await b.request(`/api/uploads/${u.id}/parts/1`, 'PUT', new Uint8Array([1, 2, 3]), h)).status,
+    ).toBe(200);
+    expect((await b.request(`/api/uploads/${u.id}/complete`, 'POST', {}, h)).status).toBe(200);
+    return (await env.DB.prepare('SELECT * FROM files WHERE id=?').bind(u.id).first<FileRow>())!;
+  }
+  it('keeps a batch together across group pages and retains standalone legacy files', async () => {
+    const b = await start();
+    const a = await ready(b, 'together'),
+      other = await ready(b),
+      z = await ready(b, 'together');
+    expect(a.batch_id).toBe(z.batch_id);
+    expect(other.batch_id).toBeNull();
+    const response = await b.request('/api/file-groups');
+    expect(response.status).toBe(200);
+    const list = await response.json<{ files: { id: string; batchId: string | null }[] }>();
+    expect(
+      list.files
+        .filter((f) => f.batchId === a.batch_id)
+        .map((f) => f.id)
+        .sort(),
+    ).toEqual([a.id, z.id].sort());
+    // Make one group larger than the old 25-file page boundary.
+    for (let i = 0; i < 25; i++) await ready(b, 'together', `part-${i}.txt`);
+    const full = await (
+      await b.request('/api/file-groups')
+    ).json<{ files: { id: string; batchId: string | null }[]; nextCursor: string | null }>();
+    expect(full.files.filter((f) => f.batchId === a.batch_id)).toHaveLength(27);
+    expect(full.nextCursor).toBeNull();
+  });
+  it('accepts a stable shortcut batch key while leaving old shortcut requests compatible', async () => {
+    const token = 'S'.repeat(43),
+      device = crypto.randomUUID();
+    await env.DB.prepare(
+      "INSERT INTO trusted_devices(id,name,kind,token_hash,created_at,last_used_at) VALUES(?,?,'shortcut',?,?,?)",
+    )
+      .bind(device, 'shortcut', await hash(token), Date.now(), Date.now())
+      .run();
+    const b = new Browser();
+    const ids: string[] = [];
+    for (const batchKey of ['same-run', 'same-run', undefined]) {
+      const r = await b.request(
+        '/api/shortcut/uploads',
+        'POST',
+        {
+          filename: 'x.png',
+          sizeBytes: 3,
+          retentionSeconds: 86400,
+          ...(batchKey ? { batchKey } : {}),
+        },
+        { Authorization: 'Bearer ' + token, 'Idempotency-Key': crypto.randomUUID() },
+      );
+      expect(r.status).toBe(201);
+      ids.push((await r.json<UploadCreated>()).id);
+    }
+    const rows = await Promise.all(
+      ids.map((id) =>
+        env.DB.prepare('SELECT batch_id FROM files WHERE id=?').bind(id).first<string>('batch_id'),
+      ),
+    );
+    expect(rows[0]).toBe(rows[1]);
+    expect(rows[0]).toBeTruthy();
+    expect(rows[2]).toBeNull();
+  });
+  it('streams only selected files, disambiguates names, and binds ZIP to the unlocked session', async () => {
+    const b = await start(),
+      a = await ready(b, 'zip'),
+      z = await ready(b, 'zip'),
+      other = await ready(b, undefined, 'not-selected.txt');
+    const create = await b.request('/api/files/archive', 'POST', { ids: [a.id, z.id] });
+    expect(create.status).toBe(200);
+    const ticket = await create.json<{ url: string }>();
+    expect((await new Browser().request(ticket.url)).status).toBe(401);
+    const another = new Browser();
+    await another.status();
+    await another.request('/api/download/unlock', 'POST', { pin: '4827' });
+    await another.status();
+    expect((await another.request(ticket.url)).status).toBe(404);
+    const zip = await b.request(ticket.url);
+    expect(zip.headers.get('Content-Type')).toBe('application/zip');
+    const body = new Uint8Array(await zip.arrayBuffer()),
+      text = new TextDecoder().decode(body);
+    expect(text).toContain('사진.png');
+    expect(text).toContain('사진 (2).png');
+    expect(text).not.toContain(other.filename);
+    expect(new DataView(body.buffer).getUint32(body.length - 22, true)).toBe(0x06054b50);
+    await env.DB.prepare('UPDATE files SET expires_at=? WHERE id=?')
+      .bind(Date.now() - 1, a.id)
+      .run();
+    expect((await b.request(ticket.url)).status).toBe(409);
+    expect((await b.request('/api/files/archive', 'POST', { ids: [a.id] })).status).toBe(409);
+  });
+  it('deletes only checked files without another code on a trusted browser', async () => {
+    const b = await start(),
+      a = await ready(b, 'delete'),
+      z = await ready(b, 'delete'),
+      keep = await ready(b, 'delete');
+    expect(
+      (await b.request('/api/files/delete', 'POST', { ids: [a.id, z.id] }, { 'X-CSRF-Token': '' }))
+        .status,
+    ).toBe(403);
+    const r = await b.request('/api/files/delete', 'POST', { ids: [a.id, z.id] });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({
+      results: expect.arrayContaining([
+        { id: a.id, state: 'DELETED' },
+        { id: z.id, state: 'DELETED' },
+      ]),
+    });
+    expect(await env.BUCKET.head(a.final_key)).toBeNull();
+    expect(await env.BUCKET.head(keep.final_key)).not.toBeNull();
+    expect((await b.request('/api/files/delete', 'POST', { ids: [a.id, z.id] })).status).toBe(200);
+  });
+  it('binds one-use batch deletion grants to exactly the selected IDs', async () => {
+    const b = await start(false),
+      a = await ready(b),
+      keep = await ready(b);
+    expect((await b.request('/api/files/delete', 'POST', { ids: [a.id] })).status).toBe(403);
+    const token = 'batch-test-grant';
+    await env.DB.prepare(
+      'INSERT INTO admin_grants(id,token_hash,purpose,target_id,expires_at) VALUES(?,?,?,?,?)',
+    )
+      .bind(
+        crypto.randomUUID(),
+        await hash(token),
+        'delete_files',
+        await selectionTarget([a.id]),
+        Date.now() + 300000,
+      )
+      .run();
+    const h = { 'X-Admin-Grant': token };
+    expect((await b.request('/api/files/delete', 'POST', { ids: [a.id, keep.id] }, h)).status).toBe(
+      403,
+    );
+    expect((await b.request('/api/files/delete', 'POST', { ids: [a.id] }, h)).status).toBe(200);
+    expect((await b.request('/api/files/delete', 'POST', { ids: [a.id] }, h)).status).toBe(403);
+    expect(await env.BUCKET.head(keep.final_key)).not.toBeNull();
+  });
+  it('issues a batch deletion grant only after validating a target selection', async () => {
+    const b = new Browser();
+    await b.status();
+    const code = new TOTP({ secret: env.TOTP_SECRET }).generate();
+    expect(
+      (await b.request('/api/auth/totp', 'POST', { code, intent: 'delete_files' })).status,
+    ).toBe(400);
+    const ids = [crypto.randomUUID(), crypto.randomUUID()];
+    const response = await b.request('/api/auth/totp', 'POST', {
+      code,
+      intent: 'delete_files',
+      targetIds: ids,
+    });
+    expect(response.status).toBe(200);
+    const { grant } = await response.json<{ grant: string }>();
+    expect(
+      await env.DB.prepare('SELECT purpose,target_id FROM admin_grants WHERE token_hash=?')
+        .bind(await hash(grant))
+        .first(),
+    ).toEqual({ purpose: 'delete_files', target_id: await selectionTarget(ids) });
+  });
+  it('reports a storage failure per file and finishes other selected deletions', async () => {
+    const b = await start(),
+      a = await ready(b),
+      z = await ready(b),
+      keep = await ready(b);
+    const remove = env.BUCKET.delete.bind(env.BUCKET);
+    vi.spyOn(env.BUCKET, 'delete').mockImplementation(async (key) => {
+      if (key === a.final_key) throw new Error('storage unavailable');
+      return remove(key);
+    });
+    const response = await b.request('/api/files/delete', 'POST', { ids: [a.id, z.id] });
+    expect(await response.json()).toMatchObject({
+      results: expect.arrayContaining([
+        { id: a.id, state: 'PENDING', message: expect.any(String) },
+        { id: z.id, state: 'DELETED' },
+      ]),
+    });
+    expect(await env.BUCKET.head(keep.final_key)).not.toBeNull();
+    expect(await env.BUCKET.head(z.final_key)).toBeNull();
+  });
+  it('rejects an empty selection and makes safe non-colliding ZIP basenames', async () => {
+    const b = await start();
+    expect((await b.request('/api/files/archive', 'POST', { ids: [] })).status).toBe(400);
+    expect(
+      archiveNames([
+        { filename: '../x.txt' },
+        { filename: 'CON.txt' },
+        { filename: 'same.png' },
+        { filename: 'SAME.png' },
+        { filename: '..' },
+      ]),
+    ).toEqual(['.._x.txt', '_CON.txt', 'same.png', 'SAME (2).png', 'file']);
+  });
+});
 describe('recovery and reconciliation', () => {
   it('recovers through the real part endpoint when a D1 trigger rejects its first acknowledgement', async () => {
     const b = new Browser();

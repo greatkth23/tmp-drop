@@ -7,13 +7,15 @@ export function TotpForm({
   intent = 'upload',
   onSuccess,
   targetId,
+  targetIds,
   onBusyChange,
   disabled = false,
   validate,
 }: {
-  intent?: 'upload' | 'manage' | 'create_device' | 'revoke_device' | 'delete_file';
+  intent?: 'upload' | 'manage' | 'create_device' | 'revoke_device' | 'delete_file' | 'delete_files';
   onSuccess: (grant?: string) => void | Promise<void>;
   targetId?: string;
+  targetIds?: string[];
   onBusyChange?: (busy: boolean) => void;
   disabled?: boolean;
   validate?: () => string | undefined;
@@ -50,6 +52,7 @@ export function TotpForm({
         intent: intent === 'upload' && trust ? 'trust' : intent,
         ...(trust && intent === 'upload' ? { deviceName: name } : {}),
         ...(targetId ? { targetId } : {}),
+        ...(targetIds ? { targetIds } : {}),
       });
       setCode('');
       await onSuccess(result.grant);

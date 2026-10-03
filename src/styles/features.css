@@ -840,3 +840,102 @@ footer > span:first-child {
   overflow-wrap: anywhere;
   margin: 0;
 }
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  padding: 16px 20px;
+  background: #f3f3f3;
+  border-radius: 16px;
+}
+.selection-bar > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.selection-bar .button-row {
+  margin-left: auto;
+}
+.file-check {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  accent-color: #282828;
+  cursor: pointer;
+}
+.file-group + .file-group {
+  border-top: 1px solid #ddd;
+}
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  background: #fafafa;
+}
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.group-toggle strong {
+  display: block;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.group-toggle small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
+.group-caret {
+  font-size: 20px;
+}
+.group-toggle-label {
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.download-row.selectable-row {
+  grid-template-columns: 24px minmax(0, 1fr) 90px 160px auto;
+  gap: 16px;
+}
+.bulk-delete-list {
+  max-height: 240px;
+  overflow: auto;
+  padding-left: 24px;
+}
+.bulk-delete-list li {
+  overflow-wrap: anywhere;
+  padding: 6px 0;
+}
+.bulk-delete-list small {
+  margin-left: 12px;
+  color: var(--muted);
+}
+@media (max-width: 900px) {
+  .download-row.selectable-row {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+  .selectable-row .download-size,
+  .selectable-row .expiry,
+  .selectable-row .download-actions {
+    grid-column: 2;
+  }
+  .selection-bar .button-row {
+    margin-left: 0;
+  }
+  .group-head {
+    padding: 16px;
+  }
+}

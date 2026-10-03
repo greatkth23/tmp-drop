@@ -110,6 +110,19 @@ it('checks the server after an offline response loss and does not resend an acce
 
 const fixtureFile = (name = 'test.bin') => new File([new Uint8Array([1, 2, 3])], name);
 const creations = () => apiMocks.mutate.mock.calls.filter(([path]) => path === '/api/uploads');
+it('uses one batch per start and a new batch on the next start', async () => {
+  const engine = new Engine();
+  engine.add([fixtureFile('a'), fixtureFile('b')], 3600);
+  engine.start();
+  await vi.waitFor(() => expect(engine.getSnapshot().every((f) => f.state === 'ready')).toBe(true));
+  const first = creations().map(([, body]) => (body as { batchKey: string }).batchKey);
+  expect(first[0]).toBeTruthy();
+  expect(first[0]).toBe(first[1]);
+  engine.add([fixtureFile('c')], 3600);
+  engine.start();
+  await vi.waitFor(() => expect(creations()).toHaveLength(3));
+  expect((creations()[2][1] as { batchKey: string }).batchKey).not.toBe(first[0]);
+});
 it('can start again after part authorization expires without querying with the expired capability', async () => {
   const implementation = apiMocks.mutate.getMockImplementation()!;
   apiMocks.mutate.mockImplementationOnce(async (path: string, ...args: unknown[]) => ({

@@ -8,7 +8,7 @@ export async function readFilePages(count: number, signal: AbortSignal): Promise
     serverNow = 0;
   for (let page = 0; page < count; page++) {
     const result: Listing = await api<Listing>(
-      '/api/files' + (nextCursor ? '?cursor=' + encodeURIComponent(nextCursor) : ''),
+      '/api/file-groups' + (nextCursor ? '?cursor=' + encodeURIComponent(nextCursor) : ''),
       { signal },
     );
     for (const file of result.files) collected.set(file.id, file);

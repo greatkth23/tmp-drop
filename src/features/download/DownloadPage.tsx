@@ -4,12 +4,14 @@ import type { AuthStatus, FileSummary } from '../../../shared/contracts';
 import { ApiFailure, message, mutate } from '../../api';
 import { engine } from '../../uploader';
 import { Icon } from '../../components/Icon';
-import { ErrorText, FileIdentity, PageHead } from '../../components/Ui';
+import { ErrorText, PageHead } from '../../components/Ui';
 import { useNow } from '../../hooks/useAuthStatus';
-import { ago, bytes, dateTime, left } from '../../lib/format';
+import { bytes, dateTime } from '../../lib/format';
 import type { Page } from '../../lib/format';
 import { DeleteFileDialog } from './DeleteFileDialog';
 import { readFilePages } from './listing';
+import { GroupedFiles, SelectBox } from './GroupedFiles';
+import { DeleteFilesDialog } from './DeleteFilesDialog';
 export function DownloadPage({
   auth,
   offset,
@@ -40,7 +42,10 @@ export function DownloadPage({
     [lastChecked, setLastChecked] = useState(0),
     [deleting, setDeleting] = useState<FileSummary | null>(null),
     [notice, setNotice] = useState(''),
-    [retryAt, setRetryAt] = useState(0);
+    [retryAt, setRetryAt] = useState(0),
+    [selected, setSelected] = useState<Set<string>>(new Set()),
+    [bulkDeleting, setBulkDeleting] = useState<FileSummary[] | null>(null),
+    [zipping, setZipping] = useState(false);
   const pages = useRef(1),
     generation = useRef(0),
     request = useRef<AbortController | null>(null),
@@ -58,6 +63,14 @@ export function DownloadPage({
         const result = await readFilePages(target, controller.signal);
         if (current !== generation.current) return;
         setFiles(result.files);
+        setSelected(
+          (old) =>
+            new Set(
+              [...old].filter((id) =>
+                result.files.some((f) => f.id === id && f.expiresAt > Date.now() + offset),
+              ),
+            ),
+        );
         setCursor(result.nextCursor);
         pages.current = target;
         setLoaded(true);
@@ -79,7 +92,7 @@ export function DownloadPage({
         }
       }
     },
-    [refresh],
+    [refresh, offset],
   );
   useEffect(() => {
     if (!unlocked) {
@@ -88,6 +101,8 @@ export function DownloadPage({
       request.current = null;
       pages.current = 1;
       setFiles([]);
+      setSelected(new Set());
+      setBulkDeleting(null);
       setCursor(null);
       setLoaded(false);
       setLoading(false);
@@ -146,6 +161,41 @@ export function DownloadPage({
     }
   };
   const visible = files.filter((f) => f.expiresAt > now);
+  const chosen = visible.filter((f) => selected.has(f.id));
+  const toggle = (ids: string[]) => {
+    const next = new Set(chosen.map((f) => f.id));
+    if (ids.every((id) => next.has(id))) ids.forEach((id) => next.delete(id));
+    else ids.forEach((id) => next.add(id));
+    if (next.size > 100) {
+      setError('한 번에 최대 100개 파일을 선택할 수 있습니다.');
+      return;
+    }
+    setSelected(next);
+  };
+  const downloadSelected = async () => {
+    if (!chosen.length || zipping) return;
+    setZipping(true);
+    setError('');
+    try {
+      const result = await mutate<{ url: string }>('/api/files/archive', {
+        ids: chosen.map((f) => f.id),
+      });
+      const anchor = document.createElement('a');
+      anchor.href = result.url;
+      anchor.download = 'drop.zip';
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setNotice(`${chosen.length}개 파일의 ZIP 다운로드를 요청했습니다.`);
+    } catch (e) {
+      setError(message(e));
+      await refresh();
+      void load(false, true);
+    } finally {
+      setZipping(false);
+    }
+  };
+
   return (
     <>
       <PageHead
@@ -255,6 +305,43 @@ export function DownloadPage({
               {notice}
             </p>
           )}
+          {visible.length > 0 && (
+            <div className="selection-bar">
+              <label className="checkbox">
+                <SelectBox
+                  label="불러온 파일 전체 선택"
+                  checked={chosen.length === visible.length}
+                  mixed={chosen.length > 0 && chosen.length < visible.length}
+                  onChange={() => toggle(visible.map((f) => f.id))}
+                />
+                <span>불러온 파일 전체 선택</span>
+              </label>
+              <span role="status">
+                {chosen.length}개 선택 · {bytes(chosen.reduce((sum, f) => sum + f.sizeBytes, 0))}
+              </span>
+              <div className="button-row">
+                <button
+                  className="btn secondary small"
+                  disabled={!chosen.length || zipping || !connected}
+                  onClick={() => void downloadSelected()}
+                >
+                  <Icon name="download" size={17} />
+                  {zipping ? 'ZIP 준비 중…' : '선택 ZIP 다운로드'}
+                </button>
+                <button
+                  className="btn quiet small danger-text"
+                  disabled={!chosen.length || !connected}
+                  onClick={() => {
+                    setNotice('');
+                    setBulkDeleting(chosen);
+                  }}
+                >
+                  <Icon name="trash" size={17} />
+                  선택 삭제
+                </button>
+              </div>
+            </div>
+          )}
           <section
             className="panel file-table"
             aria-label="받을 수 있는 파일 목록"
@@ -285,51 +372,17 @@ export function DownloadPage({
                 </button>
               </div>
             ) : (
-              <>
-                <div className="table-head" aria-hidden="true">
-                  <span>파일</span>
-                  <span>크기</span>
-                  <span>보관 시간</span>
-                  <span>받기 · 정리</span>
-                </div>
-                {visible.map((f) => (
-                  <article className="download-row" key={f.id}>
-                    <FileIdentity name={f.filename} detail={ago(f.completedAt, now)} />
-                    <span className="download-size">{bytes(f.sizeBytes)}</span>
-                    <div className={`expiry ${f.expiresAt - now < 3600_000 ? 'soon' : ''}`}>
-                      <span>
-                        <Icon name="clock" size={14} />
-                        {left(f.expiresAt, now)}
-                      </span>
-                      <small>{dateTime(f.expiresAt)}</small>
-                    </div>
-                    <div className="download-actions">
-                      <a
-                        className="btn primary small"
-                        href={`/api/files/${f.id}/download`}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`${f.filename} 다운로드`}
-                      >
-                        <Icon name="download" size={18} />
-                        다운로드
-                      </a>
-                      <button
-                        className="btn quiet small danger-text"
-                        disabled={!connected}
-                        aria-label={`${f.filename} 삭제`}
-                        onClick={() => {
-                          setNotice('');
-                          setDeleting(f);
-                        }}
-                      >
-                        <Icon name="trash" size={17} />
-                        삭제
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </>
+              <GroupedFiles
+                files={visible}
+                selected={new Set(chosen.map((f) => f.id))}
+                toggle={toggle}
+                onDelete={(f) => {
+                  setNotice('');
+                  setDeleting(f);
+                }}
+                now={now}
+                connected={connected}
+              />
             )}
           </section>
           {cursor && (
@@ -347,6 +400,30 @@ export function DownloadPage({
             업로드가 완료된 파일만 표시됩니다. 만료 후에는 새로 받을 수 없습니다.
           </p>
         </>
+      )}
+      {bulkDeleting && unlocked && (
+        <DeleteFilesDialog
+          files={bulkDeleting}
+          auth={auth}
+          connected={connected}
+          refresh={refresh}
+          onClose={() => setBulkDeleting(null)}
+          onResult={({ results }) => {
+            const removed = results
+              .filter((r) => r.state === 'DELETED' || r.state === 'PENDING')
+              .map((r) => r.id);
+            const failed = results.filter((r) => r.state === 'FAILED');
+            removed.forEach((id) => engine.markDeleted(id));
+            setFiles((old) => old.filter((f) => !removed.includes(f.id)));
+            setSelected(new Set(failed.map((r) => r.id)));
+            setNotice(
+              `${results.filter((r) => r.state === 'DELETED').length}개 삭제${results.some((r) => r.state === 'PENDING') ? ' · 일부 파일은 저장소 정리 중' : ''}${failed.length ? ` · ${failed.length}개 삭제 실패` : ''}`,
+            );
+            if (failed.length) setError(failed[0].message || '일부 파일을 삭제하지 못했습니다.');
+            setBulkDeleting(null);
+            void load(false, true);
+          }}
+        />
       )}
       {deleting && (
         <DeleteFileDialog
