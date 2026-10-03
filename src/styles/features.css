@@ -1381,3 +1381,19 @@ footer > span:first-child {
     font-size: 14px;
   }
 }
+
+.deletion-notices {
+  margin-bottom: 16px;
+}
+.deletion-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.deletion-notice p {
+  margin: 0;
+}

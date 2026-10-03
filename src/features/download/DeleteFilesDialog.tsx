@@ -1,46 +1,24 @@
 import { useState } from 'react';
 import type { AuthStatus, FileSummary } from '../../../shared/contracts';
-import { mutate, message } from '../../api';
-import { Dialog, ErrorText } from '../../components/Ui';
+import { deletionJobs } from './deletionJobs';
+import { Dialog } from '../../components/Ui';
 import { TotpForm } from '../auth/AuthForms';
 import { bytes } from '../../lib/format';
-export interface DeleteResults {
-  results: { id: string; state: string; message?: string }[];
-}
 export function DeleteFilesDialog({
   files,
   auth,
   connected,
   onClose,
-  onResult,
-  refresh,
 }: {
   files: FileSummary[];
   auth: AuthStatus;
   connected: boolean;
   onClose: () => void;
-  onResult: (r: DeleteResults) => void;
-  refresh: () => Promise<unknown>;
 }) {
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
-  const remove = async (grant?: string) => {
-    setBusy(true);
-    setError('');
-    try {
-      const result = await mutate<DeleteResults>(
-        '/api/files/delete',
-        { ids: files.map((f) => f.id) },
-        'POST',
-        grant ? { 'X-Admin-Grant': grant } : {},
-      );
-      onResult(result);
-    } catch (e) {
-      setError(message(e));
-      await refresh();
-    } finally {
-      setBusy(false);
-    }
+  const [busy, setBusy] = useState(false);
+  const remove = (grant?: string) => {
+    deletionJobs.start(files, true, grant);
+    onClose();
   };
   return (
     <Dialog title={`선택한 ${files.length}개 파일을 삭제할까요?`} busy={busy} onClose={onClose}>
@@ -53,7 +31,6 @@ export function DeleteFilesDialog({
           </li>
         ))}
       </ul>
-      <ErrorText error={error} />
       {auth.uploadAuth === 'trusted' ? (
         <div className="dialog-actions">
           <button className="btn secondary" disabled={busy} onClick={onClose}>

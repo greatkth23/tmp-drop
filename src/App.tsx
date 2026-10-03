@@ -1,3 +1,4 @@
+import { deletionJobs } from './features/download/deletionJobs';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { AppShell } from './components/AppShell';
 import { Dialog, ErrorText } from './components/Ui';
@@ -16,6 +17,7 @@ export function App() {
     [endBusy, setEndBusy] = useState(false),
     [endError, setEndError] = useState('');
   const { auth, error, refresh, offset } = useAuthStatus();
+  const deletions = useSyncExternalStore(deletionJobs.subscribe, deletionJobs.getSnapshot);
   const queue = useSyncExternalStore(engine.subscribe, engine.getSnapshot);
   const active = queue.filter((i) =>
     ['creating', 'uploading', 'retrying', 'offline', 'finalizing', 'cancel_pending'].includes(
@@ -71,6 +73,27 @@ export function App() {
   };
   return (
     <AppShell page={page} navigate={navigate} local={auth?.local} active={active}>
+      {deletions.length > 0 && (
+        <aside className="deletion-notices" aria-label="파일 삭제 작업">
+          {deletions.map((job) => (
+            <div className="deletion-notice" key={job.key}>
+              <div role={job.error ? 'alert' : 'status'}>
+                {job.text && <p>{job.text}</p>}
+                {job.error && <p className="danger-text">{job.error}</p>}
+              </div>
+              {!job.pending && (
+                <button
+                  className="btn quiet small"
+                  aria-label="삭제 알림 닫기"
+                  onClick={() => deletionJobs.dismiss(job.key)}
+                >
+                  닫기
+                </button>
+              )}
+            </div>
+          ))}
+        </aside>
+      )}
       {!auth ? (
         <div className="panel connection-state">
           <h1 tabIndex={-1}>{error ? '연결을 확인해 주세요.' : '잠시만 기다려 주세요.'}</h1>

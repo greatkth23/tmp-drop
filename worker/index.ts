@@ -35,7 +35,7 @@ import {
   summary,
 } from './uploads';
 import { presign } from './storage';
-import { cleanup, deleteStoredFile } from './cleanup';
+import { cleanup, enqueueDeletion } from './cleanup';
 import { reconcile } from './reconciliation';
 
 const app = new Hono<AppEnv>();
@@ -304,17 +304,10 @@ app.delete('/api/files/:id', async (c) => {
   if (file.state === 'DELETED') return c.json({ state: 'DELETED' });
   if (!['READY', 'EXPIRED', 'DELETING'].includes(file.state))
     fail(409, 'FILE_NOT_READY', '완료된 파일만 삭제할 수 있습니다.');
-  const result = await deleteStoredFile(c, file);
-  if (result === 'busy')
-    fail(409, 'DELETE_IN_PROGRESS', '이미 삭제 중입니다. 잠시 후 목록을 새로고침해 주세요.');
-  if (result === 'failed')
-    fail(
-      503,
-      'DELETE_FAILED',
-      '파일을 목록에서 숨겼지만 저장소 정리가 지연되고 있습니다. 자동으로 다시 시도합니다.',
-    );
-  await audit(c, 'file_deleted', id);
-  return c.json({ state: 'DELETED' });
+  if (!(await enqueueDeletion(c, file)))
+    fail(409, 'DELETE_IN_PROGRESS', '파일 상태가 변경됐습니다. 목록을 새로고침해 주세요.');
+  await audit(c, 'file_delete_requested', id);
+  return c.json({ state: 'PENDING' }, 202);
 });
 app.get('/api/files/:id/preview', filePreview);
 app.get('/api/files/:id/download', async (c) => {

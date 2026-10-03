@@ -19,7 +19,14 @@ class Browser {
   runtime: Env = env;
   cookies = new Map<string, string>();
   csrf = '';
-  async request(path: string, method = 'GET', body?: unknown, extra: Record<string, string> = {}) {
+  background: ReturnType<typeof createExecutionContext>[] = [];
+  async request(
+    path: string,
+    method = 'GET',
+    body?: unknown,
+    extra: Record<string, string> = {},
+    waitForBackground = true,
+  ) {
     const headers = new Headers({
       Cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; '),
     });
@@ -41,7 +48,8 @@ class Browser {
       this.runtime,
       ctx,
     );
-    await waitOnExecutionContext(ctx);
+    if (waitForBackground) await waitOnExecutionContext(ctx);
+    else this.background.push(ctx);
     for (const value of response.headers.getSetCookie()) {
       const [pair] = value.split(';');
       const index = pair.indexOf('=');
@@ -316,14 +324,67 @@ describe('upload batches and selected file actions', () => {
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({
       results: expect.arrayContaining([
-        { id: a.id, state: 'DELETED' },
-        { id: z.id, state: 'DELETED' },
+        { id: a.id, state: 'PENDING', message: expect.any(String) },
+        { id: z.id, state: 'PENDING', message: expect.any(String) },
       ]),
     });
     expect(await env.BUCKET.head(a.final_key)).toBeNull();
     expect(await env.BUCKET.head(keep.final_key)).not.toBeNull();
     expect((await b.request('/api/files/delete', 'POST', { ids: [a.id, z.id] })).status).toBe(200);
   });
+  it.each(['single', 'batch'])(
+    'acknowledges %s deletion before slow storage finishes and immediately blocks new downloads',
+    async (mode) => {
+      const b = await start(),
+        file = await ready(b),
+        keep = await ready(b);
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const original = env.BUCKET.delete.bind(env.BUCKET);
+      vi.spyOn(env.BUCKET, 'delete').mockImplementation(async (key) => {
+        await gate;
+        return original(key);
+      });
+      let timer: ReturnType<typeof setTimeout>;
+      try {
+        const response = await Promise.race([
+          b.request(
+            mode === 'single' ? `/api/files/${file.id}` : '/api/files/delete',
+            mode === 'single' ? 'DELETE' : 'POST',
+            mode === 'single' ? {} : { ids: [file.id] },
+            {},
+            false,
+          ),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error('HTTP response waited for storage deletion')),
+              1500,
+            );
+          }),
+        ]);
+        expect(response.status).toBe(mode === 'single' ? 202 : 200);
+        expect(
+          await env.DB.prepare('SELECT state FROM files WHERE id=?').bind(file.id).first('state'),
+        ).toBe('DELETING');
+        expect(await env.BUCKET.head(file.final_key)).not.toBeNull();
+        expect((await b.request(`/api/files/${file.id}/download`)).status).toBe(404);
+        expect((await b.request(`/api/files/${file.id}/preview`)).status).toBe(404);
+        expect(
+          (await (await b.request('/api/files')).json<{ files: { id: string }[] }>()).files.map(
+            (f) => f.id,
+          ),
+        ).not.toContain(file.id);
+        expect(await env.BUCKET.head(keep.final_key)).not.toBeNull();
+      } finally {
+        clearTimeout(timer!);
+        release();
+        await Promise.all(b.background.map((ctx) => waitOnExecutionContext(ctx)));
+      }
+      expect(await env.BUCKET.head(file.final_key)).toBeNull();
+    },
+  );
   it('binds one-use batch deletion grants to exactly the selected IDs', async () => {
     const b = await start(false),
       a = await ready(b),
@@ -370,7 +431,7 @@ describe('upload batches and selected file actions', () => {
         .first(),
     ).toEqual({ purpose: 'delete_files', target_id: await selectionTarget(ids) });
   });
-  it('reports a storage failure per file and finishes other selected deletions', async () => {
+  it('accepts deletion durably despite storage failure and finishes other selected deletions', async () => {
     const b = await start(),
       a = await ready(b),
       z = await ready(b),
@@ -384,7 +445,7 @@ describe('upload batches and selected file actions', () => {
     expect(await response.json()).toMatchObject({
       results: expect.arrayContaining([
         { id: a.id, state: 'PENDING', message: expect.any(String) },
-        { id: z.id, state: 'DELETED' },
+        { id: z.id, state: 'PENDING', message: expect.any(String) },
       ]),
     });
     expect(await env.BUCKET.head(keep.final_key)).not.toBeNull();
@@ -1267,7 +1328,7 @@ describe('immediate file deletion', () => {
     await trustBrowser(b);
     expect((await b.status()).uploadAuth).toBe('trusted');
     const path = '/api/files/' + file.id;
-    expect((await b.request(path, 'DELETE')).status).toBe(200);
+    expect((await b.request(path, 'DELETE')).status).toBe(202);
     expect((await b.request(path, 'DELETE')).status).toBe(200);
     expect(await env.BUCKET.head(file.final_key)).toBeNull();
     expect(await env.DB.prepare('SELECT ready_bytes FROM quota_state').first('ready_bytes')).toBe(
@@ -1365,7 +1426,7 @@ describe('immediate file deletion', () => {
       await env.DB.prepare('SELECT state FROM files WHERE id=?').bind(file.id).first('state'),
     ).toBe('READY');
   });
-  it('removes final and staging objects immediately, blocks download, and releases quota exactly once', async () => {
+  it('removes final and staging objects in background, blocks download, and releases quota exactly once', async () => {
     const b = new Browser();
     const file = await readyFile(b);
     const path = '/api/files/' + file.id;
@@ -1373,7 +1434,7 @@ describe('immediate file deletion', () => {
     await env.BUCKET.put(staging, new Uint8Array([1, 2, 3]));
     await env.DB.prepare('UPDATE files SET staging_key=? WHERE id=?').bind(staging, file.id).run();
     const grant = await deletionGrant(file.id);
-    expect((await b.request(path, 'DELETE', {}, grant)).status).toBe(200);
+    expect((await b.request(path, 'DELETE', {}, grant)).status).toBe(202);
     expect(await env.BUCKET.head(file.final_key)).toBeNull();
     expect(await env.BUCKET.head(staging)).toBeNull();
     expect((await b.request(path + '/download')).status).toBe(404);
@@ -1389,7 +1450,7 @@ describe('immediate file deletion', () => {
     expect(await env.DB.prepare('SELECT count(*) AS n FROM maintenance_jobs').first('n')).toBe(0);
     expect(
       await env.DB.prepare(
-        "SELECT count(*) AS n FROM audit_events WHERE event_type='file_deleted' AND resource_id=?",
+        "SELECT count(*) AS n FROM audit_events WHERE event_type='file_delete_requested' AND resource_id=?",
       )
         .bind(file.id)
         .first('n'),
@@ -1403,7 +1464,7 @@ describe('immediate file deletion', () => {
       .mockRejectedValueOnce(new Error('storage unavailable'));
     expect(
       (await b.request('/api/files/' + file.id, 'DELETE', {}, await deletionGrant(file.id))).status,
-    ).toBe(503);
+    ).toBe(202);
     expect(await env.BUCKET.head(file.final_key)).not.toBeNull();
     expect(await env.DB.prepare('SELECT ready_bytes FROM quota_state').first('ready_bytes')).toBe(
       3,

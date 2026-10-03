@@ -1,9 +1,9 @@
 import { archiveFilename } from '../../../shared/file-labels';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { FormEvent } from 'react';
 import type { AuthStatus, FileSummary } from '../../../shared/contracts';
 import { ApiFailure, message, mutate } from '../../api';
-import { engine } from '../../uploader';
+import { deletionJobs } from './deletionJobs';
 import { Icon } from '../../components/Icon';
 import { ErrorText, PageHead } from '../../components/Ui';
 import { useNow } from '../../hooks/useAuthStatus';
@@ -28,6 +28,7 @@ export function DownloadPage({
   ending: () => void;
   connected: boolean;
 }) {
+  const jobs = useSyncExternalStore(deletionJobs.subscribe, deletionJobs.getSnapshot);
   const now = useNow(offset),
     id = useId();
   const unlocked =
@@ -124,6 +125,9 @@ export function DownloadPage({
       request.current = null;
     };
   }, [unlocked, load]);
+  useEffect(() => {
+    if (unlocked && jobs.length) void load(false, true);
+  }, [jobs, unlocked, load]);
   const seconds = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -161,7 +165,11 @@ export function DownloadPage({
       setBusy(false);
     }
   };
-  const visible = files.filter((f) => f.expiresAt > now);
+  const visible = files.filter(
+    (f) =>
+      f.expiresAt > now &&
+      !jobs.some((job) => (job.pending ? job.ids.includes(f.id) : job.removed.includes(f.id))),
+  );
   const chosen = visible.filter((f) => selected.has(f.id));
   const toggle = (ids: string[]) => {
     const next = new Set(chosen.map((f) => f.id));
@@ -429,46 +437,15 @@ export function DownloadPage({
           files={bulkDeleting}
           auth={auth}
           connected={connected}
-          refresh={refresh}
           onClose={() => setBulkDeleting(null)}
-          onResult={({ results }) => {
-            const removed = results
-              .filter((r) => r.state === 'DELETED' || r.state === 'PENDING')
-              .map((r) => r.id);
-            const failed = results.filter((r) => r.state === 'FAILED');
-            removed.forEach((id) => engine.markDeleted(id));
-            setFiles((old) => old.filter((f) => !removed.includes(f.id)));
-            setSelected(
-              (old) =>
-                new Set(
-                  [...old].filter((id) => !removed.includes(id)).concat(failed.map((r) => r.id)),
-                ),
-            );
-            setNotice(
-              `${results.filter((r) => r.state === 'DELETED').length}개 삭제${results.some((r) => r.state === 'PENDING') ? ' · 일부 파일은 저장소 정리 중' : ''}${failed.length ? ` · ${failed.length}개 삭제 실패` : ''}`,
-            );
-            if (failed.length) setError(failed[0].message || '일부 파일을 삭제하지 못했습니다.');
-            setBulkDeleting(null);
-            void load(false, true);
-          }}
         />
       )}
       {deleting && (
         <DeleteFileDialog
           file={deleting}
           auth={auth}
-          refresh={refresh}
           connected={connected}
           onClose={() => setDeleting(null)}
-          onReconcile={() => load(false, true)}
-          onDeleted={() => {
-            const target = deleting;
-            engine.markDeleted(target.id);
-            setFiles((old) => old.filter((f) => f.id !== target.id));
-            setNotice(`${target.filename} 파일을 삭제했습니다.`);
-            setDeleting(null);
-            void load(false, true);
-          }}
         />
       )}
     </>

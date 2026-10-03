@@ -7,7 +7,7 @@ import { json, requireBrowserMutation } from './http';
 import { hash, randomToken } from './crypto';
 import { fail } from './errors';
 import { summary } from './uploads';
-import { deleteStoredFile } from './cleanup';
+import { enqueueDeletion } from './cleanup';
 import { archiveStream } from './archive';
 
 export const fileActions = new Hono<AppEnv>();
@@ -126,18 +126,13 @@ fileActions.post('/api/files/delete', async (c) => {
       continue;
     }
     try {
-      const result = await deleteStoredFile(c, file);
+      const accepted = await enqueueDeletion(c, file);
       results.push({
         id,
-        state: result === 'deleted' ? 'DELETED' : result === 'failed' ? 'PENDING' : 'FAILED',
-        ...(result !== 'deleted'
-          ? {
-              message:
-                result === 'failed'
-                  ? '목록에서 숨겼으며 저장소 정리를 다시 시도합니다.'
-                  : '다른 삭제 작업이 진행 중입니다.',
-            }
-          : {}),
+        state: accepted ? 'PENDING' : 'FAILED',
+        message: accepted
+          ? '목록에서 삭제했으며 저장소를 정리합니다.'
+          : '파일 상태가 변경됐습니다. 목록을 새로고침해 주세요.',
       });
     } catch {
       results.push({
@@ -152,7 +147,7 @@ fileActions.post('/api/files/delete', async (c) => {
   )
     .bind(
       crypto.randomUUID(),
-      'files_deleted',
+      'files_delete_requested',
       await selectionTarget(ids),
       JSON.stringify(results.map((r) => ({ id: r.id, state: r.state }))),
       Date.now(),
