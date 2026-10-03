@@ -23,6 +23,10 @@ export const uploadSchema = z
     sizeBytes: z.number().int().positive().max(POLICY.webMax),
     mime: z.string().max(150).default('application/octet-stream'),
     retentionSeconds: z.number().refine((n) => POLICY.retention.includes(n)),
+    batchKey: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{1,100}$/)
+      .optional(),
   })
   .strict();
 export const totpSchema = z
@@ -35,12 +39,14 @@ export const totpSchema = z
       'create_device',
       'revoke_device',
       'delete_file',
+      'delete_files',
       'maintenance_report',
       'maintenance_quota',
       'maintenance_delete',
     ]),
     deviceName: z.string().trim().min(1).max(50).optional(),
     targetId: z.string().uuid().optional(),
+    targetIds: z.array(z.string().uuid()).min(1).max(100).optional(),
   })
   .strict();
 export const pinSchema = z
@@ -80,6 +86,7 @@ export interface UploadCreated {
   putHeaders?: Record<string, string>;
 }
 export interface FileSummary {
+  batchId?: string | null;
   id: string;
   filename: string;
   sizeBytes: number;
@@ -121,3 +128,13 @@ export function disposition(name: string): string {
   );
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 }
+
+export const fileSelectionSchema = z
+  .object({
+    ids: z
+      .array(z.string().uuid())
+      .min(1)
+      .max(100)
+      .transform((ids) => [...new Set(ids)].sort()),
+  })
+  .strict();

@@ -1,4 +1,6 @@
+import { filePreview } from './preview';
 import { Hono } from 'hono';
+import { fileActions, selectionTarget } from './file-actions';
 import { z } from 'zod';
 import type { AppContext, AppEnv, FileRow } from './types';
 import { POLICY, pinSchema, totpSchema } from '../shared/contracts';
@@ -64,6 +66,7 @@ async function audit(c: AppContext, event: string, resource?: string): Promise<v
     .bind(crypto.randomUUID(), event, resource || null, 'success', Date.now(), c.get('requestId'))
     .run();
 }
+app.route('/', fileActions);
 app.get('/api/health', (c) => c.json({ ok: true, version: '0.2.0' }));
 app.get('/api/auth/status', async (c) => {
   const [p, d] = await Promise.all([browserPrincipal(c, false), downloadSession(c, false)]);
@@ -87,6 +90,12 @@ app.post('/api/auth/totp', async (c) => {
     fail(400, 'DEVICE_NAME_REQUIRED', '기기 이름을 입력해 주세요.');
   if (['revoke_device', 'delete_file'].includes(input.intent) && !input.targetId)
     fail(400, 'TARGET_REQUIRED', '작업 대상이 필요합니다.');
+  if (input.intent === 'delete_files' && !input.targetIds?.length)
+    fail(400, 'TARGET_REQUIRED', '삭제할 파일을 선택해 주세요.');
+  const target =
+    input.intent === 'delete_files'
+      ? await selectionTarget(input.targetIds!)
+      : input.targetId || null;
   await consumeTotp(c, input.code);
   const token = randomToken(),
     id = crypto.randomUUID(),
@@ -115,7 +124,7 @@ app.post('/api/auth/totp', async (c) => {
   await c.env.DB.prepare(
     'INSERT INTO admin_grants(id,token_hash,purpose,target_id,expires_at) VALUES(?,?,?,?,?)',
   )
-    .bind(id, await hash(token), input.intent, input.targetId || null, now + POLICY.grantTtl)
+    .bind(id, await hash(token), input.intent, target, now + POLICY.grantTtl)
     .run();
   return c.json({ grant: token, expiresAt: now + POLICY.grantTtl });
 });
@@ -307,6 +316,7 @@ app.delete('/api/files/:id', async (c) => {
   await audit(c, 'file_deleted', id);
   return c.json({ state: 'DELETED' });
 });
+app.get('/api/files/:id/preview', filePreview);
 app.get('/api/files/:id/download', async (c) => {
   const d = (await downloadSession(c))!;
   const file = await c.env.DB.prepare(

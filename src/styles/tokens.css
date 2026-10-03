@@ -1,0 +1,33 @@
+:root {
+  --bg: #f8f8f8;
+  --page-bg: #fff;
+  --surface: #fff;
+  --ink: #111;
+  --muted: #707070;
+  --surface-muted: #757575;
+  --line: #cfcfcf;
+  --control-line: #757575;
+  --accent: #f1fd82;
+  --success: #24633c;
+  --success-bg: #eff7f0;
+  --warning: #8a5300;
+  --warning-bg: #fff4de;
+  --danger: #b42318;
+  --danger-bg: #fff1f0;
+  --disabled: #b3b3b3;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-card: 20px;
+  --radius-full: 999px;
+  --shadow-floating: 0 8px 24px rgb(0 0 0 / 9%);
+  --font-ui:
+    'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Malgun Gothic', sans-serif;
+}

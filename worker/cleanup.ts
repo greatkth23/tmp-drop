@@ -128,6 +128,7 @@ export async function cleanup(
     );
   }
   await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM download_archives WHERE expires_at<?').bind(now),
     c.env.DB.prepare('DELETE FROM auth_attempts WHERE attempted_at<?').bind(now - 600_000),
     c.env.DB.prepare('DELETE FROM totp_uses WHERE used_at<?').bind(now - 300_000),
     c.env.DB.prepare('DELETE FROM admin_grants WHERE expires_at<?').bind(now),

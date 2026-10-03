@@ -11,5 +11,5 @@
     "types": ["vite/client"],
     "allowImportingTsExtensions": true
   },
-  "include": ["src", "shared", "vite.config.ts", "tests/uploader.test.ts"]
+  "include": ["src", "shared", "vite.config.ts", "tests/uploader.test.ts", "tests/listing.test.ts"]
 }
