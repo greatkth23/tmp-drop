@@ -1,0 +1,111 @@
+* {
+  box-sizing: border-box;
+}
+:root {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--page-bg);
+  font-size: 16px;
+  line-height: 1.5;
+  font-synthesis: none;
+}
+body {
+  margin: 0;
+  background: var(--page-bg);
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+a {
+  color: inherit;
+}
+button,
+select {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+svg {
+  flex-shrink: 0;
+}
+a,
+button,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+h1 {
+  font-size: 45px;
+  line-height: 1.25;
+  letter-spacing: -1.8px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+h2 {
+  font-size: 24px;
+  line-height: 1.35;
+  letter-spacing: -0.8px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+h3 {
+  font-size: 20px;
+  font-weight: 600;
+}
+p {
+  margin-bottom: 16px;
+}
+.muted,
+.help {
+  color: var(--muted);
+}
+.help {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+.warning-text {
+  color: var(--warning);
+}
+.danger-text {
+  color: var(--danger);
+}
+.success {
+  color: var(--success);
+}
+.full {
+  width: 100%;
+}
+.spaced {
+  margin-top: 16px;
+}
+.text-link {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

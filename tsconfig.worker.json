@@ -10,5 +10,5 @@
     "types": ["@cloudflare/workers-types", "node"]
   },
   "include": ["worker", "shared", "tests", "vitest.config.ts"],
-  "exclude": ["tests/uploader.test.ts"]
+  "exclude": ["tests/uploader.test.ts", "tests/listing.test.ts"]
 }

@@ -19,10 +19,15 @@ export interface QueueView {
   size: number;
   retention: number;
   state: QueueState;
+  approved: boolean;
   progress: number;
   bytes: number;
   speed: number;
   error?: string;
+  errorCode?: string;
+  recovery?: 'check_result' | 'restart' | 'confirm_cancel' | 'reauth';
+  checking?: boolean;
+  resultDeleted?: boolean;
   result?: FileSummary;
 }
 interface QueueItem extends QueueView {
@@ -76,16 +81,37 @@ export class UploadEngine {
   getSnapshot = () => this.snapshot;
   private emit() {
     this.snapshot = this.items.map(
-      ({ key, name, size, retention, state, progress, bytes, speed, error, result }) => ({
+      ({
         key,
         name,
         size,
         retention,
         state,
+        approved,
         progress,
         bytes,
         speed,
         error,
+        errorCode,
+        recovery,
+        checking,
+        resultDeleted,
+        result,
+      }) => ({
+        key,
+        name,
+        size,
+        retention,
+        state,
+        approved,
+        progress,
+        bytes,
+        speed,
+        error,
+        errorCode,
+        recovery,
+        checking,
+        resultDeleted,
         result,
       }),
     );
@@ -105,6 +131,7 @@ export class UploadEngine {
         size: file.size,
         retention,
         state: 'queued' as const,
+        approved: false,
         progress: 0,
         bytes: 0,
         speed: 0,
@@ -130,37 +157,120 @@ export class UploadEngine {
     this.items = this.items.filter((i) => i.key !== key);
     this.emit();
   }
-  start() {
+  start(
+    keys = this.items.filter((i) => ['queued', 'needs_auth'].includes(i.state)).map((i) => i.key),
+  ) {
     this.enabled = true;
     this.items.forEach((i) => {
+      if (!keys.includes(i.key) || !['queued', 'needs_auth'].includes(i.state)) return;
+      i.approved = true;
       if (i.state === 'needs_auth') {
         i.state = 'queued';
         i.error = undefined;
+        i.errorCode = undefined;
+        i.recovery = undefined;
       }
     });
+    this.emit();
     this.pump();
+  }
+  markDeleted(id: string) {
+    for (const item of this.items) if (item.result?.id === id) item.resultDeleted = true;
+    this.emit();
+  }
+  async checkResult(key: string) {
+    const item = this.items.find((i) => i.key === key);
+    if (!item?.id || !item.capability || item.checking) return;
+    item.checking = true;
+    this.emit();
+    try {
+      const status = await api<UploadStatus>(`/api/uploads/${item.id}`, {
+        headers: { Authorization: `Upload ${item.capability}` },
+      });
+      if (status.state === 'READY' && status.result) {
+        item.state = 'ready';
+        item.result = status.result;
+        item.progress = 100;
+        item.bytes = item.size;
+        item.error = undefined;
+        item.errorCode = undefined;
+        item.recovery = undefined;
+        item.capability = undefined;
+      } else if (status.state === 'FINALIZING') {
+        item.state = 'finalizing';
+        item.errorCode = 'FINALIZE_PENDING';
+        item.recovery = 'check_result';
+        item.error = '서버가 파일을 확인하고 있습니다. 잠시 후 결과를 다시 확인해 주세요.';
+      } else if (
+        ['CANCELLED', 'CANCEL_REQUESTED', 'DELETING', 'DELETED', 'EXPIRED'].includes(status.state)
+      ) {
+        item.state = 'cancelled';
+        item.capability = undefined;
+        item.error = undefined;
+        item.recovery = undefined;
+      } else {
+        item.state = 'failed';
+        item.recovery = item.recovery === 'confirm_cancel' ? 'confirm_cancel' : 'restart';
+        item.error = '전송을 끝내지 못했습니다. 취소하거나 처음부터 다시 시작할 수 있습니다.';
+      }
+    } catch (error) {
+      item.error = messageForUpload(error);
+      item.errorCode = error instanceof ApiFailure ? error.code : 'NETWORK_ERROR';
+      // An unavailable result is not evidence that the original upload failed.
+      item.recovery = 'check_result';
+    } finally {
+      item.checking = false;
+      item.speed = 0;
+      this.emit();
+    }
   }
   async restart(key: string) {
     const item = this.items.find((i) => i.key === key);
     if (!item || item.state !== 'failed') return;
-    if (item.id && item.capability)
-      await mutate(`/api/uploads/${item.id}`, {}, 'DELETE', {
-        Authorization: `Upload ${item.capability}`,
-      }).catch(() => undefined);
+    if (item.recovery === 'check_result' || item.recovery === 'confirm_cancel') {
+      await this.checkResult(key);
+      return;
+    }
+    if (['CAPABILITY_EXPIRED', 'DEVICE_REVOKED'].includes(item.errorCode || '')) {
+      // This branch failed before completion was submitted. The old authorization cannot
+      // inspect/cancel it; server expiration cleans it up. Unknown finalizations stay above.
+      item.id = undefined;
+      item.capability = undefined;
+      item.idempotencyKey = crypto.randomUUID();
+    }
+    if (item.id && item.capability) {
+      await this.checkResult(key);
+      const checked = this.getSnapshot().find((i) => i.key === key);
+      if (checked?.state !== 'failed' || checked.recovery === 'check_result') return;
+      try {
+        await mutate(`/api/uploads/${item.id}`, {}, 'DELETE', {
+          Authorization: `Upload ${item.capability}`,
+        });
+      } catch (error) {
+        item.error = messageForUpload(error);
+        item.recovery = 'confirm_cancel';
+        this.emit();
+        return;
+      }
+    }
+    if (item.id) item.idempotencyKey = crypto.randomUUID();
     item.id = undefined;
     item.capability = undefined;
     item.expiresAt = undefined;
     item.controller = new AbortController();
-    item.idempotencyKey = crypto.randomUUID();
+    // A lost create response can have succeeded; keep its request key when no id was received.
     item.confirmed.clear();
     item.inFlight.clear();
     item.bytes = 0;
     item.progress = 0;
     item.speed = 0;
     item.error = undefined;
+    item.errorCode = undefined;
+    item.recovery = undefined;
+    item.approved = false;
     item.state = 'queued';
     this.emit();
-    this.start();
+    this.start([key]);
   }
   activeCredentials() {
     return this.items
@@ -172,6 +282,13 @@ export class UploadEngine {
     for (const i of this.items) {
       if (!['ready', 'cancelled'].includes(i.state)) {
         i.controller.abort();
+        if (i.state === 'finalizing' || i.recovery === 'check_result') {
+          i.state = 'failed';
+          i.recovery = 'check_result';
+          i.error =
+            '접근을 종료했습니다. 확인 중이던 파일은 완료될 수 있습니다. 파일 받기에서 확인해 주세요.';
+          continue;
+        }
         i.state = 'cancelled';
         i.capability = undefined;
       }
@@ -194,6 +311,8 @@ export class UploadEngine {
       item.inFlight.clear();
     } catch (error) {
       item.state = 'failed';
+      item.errorCode = error instanceof ApiFailure ? error.code : 'NETWORK_ERROR';
+      item.recovery = 'confirm_cancel';
       item.error =
         '취소 확인 실패: ' + (error instanceof Error ? error.message : '다시 시도해 주세요.');
     }
@@ -202,7 +321,7 @@ export class UploadEngine {
   private pump() {
     if (!this.enabled) return;
     while (this.running < 2) {
-      const item = this.items.find((i) => i.state === 'queued');
+      const item = this.items.find((i) => i.state === 'queued' && i.approved);
       if (!item) break;
       item.state = 'creating';
       this.running++;
@@ -290,6 +409,8 @@ export class UploadEngine {
       item.result = completed.result;
       item.capability = undefined;
       item.error = undefined;
+      item.errorCode = undefined;
+      item.recovery = undefined;
       item.bytes = item.size;
       item.progress = 100;
       item.speed = 0;
@@ -298,11 +419,17 @@ export class UploadEngine {
       if (item.controller.signal.aborted) return;
       if (error instanceof ApiFailure && error.code === 'UPLOAD_SESSION_EXPIRED') {
         item.state = 'needs_auth';
-        this.enabled = false;
+        item.approved = false;
+        item.recovery = 'reauth';
+      } else if (item.state === 'finalizing') {
+        item.errorCode = 'FINALIZE_PENDING';
+        item.recovery = 'check_result';
       } else {
         item.state = 'failed';
+        item.recovery = 'restart';
         item.controller.abort();
       }
+      item.errorCode ??= error instanceof ApiFailure ? error.code : 'UPLOAD_FAILED';
       item.error = error instanceof Error ? error.message : '전송하지 못했습니다.';
       item.inFlight.clear();
       this.emit();
@@ -561,5 +688,8 @@ export class UploadEngine {
       signal.addEventListener('abort', stop, { once: true });
     });
   }
+}
+function messageForUpload(error: unknown) {
+  return error instanceof Error ? error.message : '전송 결과를 확인하지 못했습니다.';
 }
 export const engine = new UploadEngine();
