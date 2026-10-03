@@ -61,39 +61,42 @@ function FileGroup({
   now: number;
   connected: boolean;
 }) {
-  const [open, setOpen] = useState(!files[0].batchId),
+  const [open, setOpen] = useState(false),
     id = useId();
+  const multiple = files.length > 1;
   const count = files.filter((f) => selected.has(f.id)).length,
     latest = Math.max(...files.map((f) => f.completedAt));
   return (
     <section className="file-group">
-      <div className="group-head">
-        <SelectBox
-          label={`이 묶음 ${files.length}개 파일 전체 선택`}
-          checked={count === files.length}
-          mixed={count > 0 && count < files.length}
-          onChange={() => toggle(files.map((f) => f.id))}
-        />
-        <button
-          className="group-toggle"
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={() => setOpen(!open)}
-        >
-          <span className="group-caret" aria-hidden="true">
-            {open ? '▾' : '▸'}
-          </span>
-          <span>
-            <strong>{files[0].batchId ? `${dateTime(latest)} 업로드` : files[0].filename}</strong>
-            <small>
-              {files.length}개 · {bytes(files.reduce((s, f) => s + f.sizeBytes, 0))}
-              {count > 0 ? ` · ${count}개 선택` : ''}
-            </small>
-          </span>
-          <span className="group-toggle-label">{open ? '접기' : '펼치기'}</span>
-        </button>
-      </div>
-      <div id={id} hidden={!open}>
+      {multiple && (
+        <div className="group-head">
+          <SelectBox
+            label={`이 묶음 ${files.length}개 파일 전체 선택`}
+            checked={count === files.length}
+            mixed={count > 0 && count < files.length}
+            onChange={() => toggle(files.map((f) => f.id))}
+          />
+          <button
+            className="group-toggle"
+            aria-label={`${dateTime(latest)} 업로드 묶음 ${files.length}개 파일 ${open ? '접기' : '펼치기'}`}
+            aria-expanded={open}
+            aria-controls={id}
+            onClick={() => setOpen(!open)}
+          >
+            <span>
+              <strong>{dateTime(latest)} 업로드</strong>
+              <small>
+                {files.length}개 · {bytes(files.reduce((s, f) => s + f.sizeBytes, 0))}
+                {count > 0 ? ` · ${count}개 선택` : ''}
+              </small>
+            </span>
+            <span className="group-chevron">
+              <Icon name={open ? 'chevron-up' : 'chevron-down'} size={22} />
+            </span>
+          </button>
+        </div>
+      )}
+      <div id={id} hidden={multiple && !open}>
         {files.map((f) => (
           <article className="download-row selectable-row" key={f.id}>
             <SelectBox

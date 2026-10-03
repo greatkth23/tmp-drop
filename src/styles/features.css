@@ -898,13 +898,11 @@ footer > span:first-child {
   margin-top: 6px;
   color: var(--muted);
 }
-.group-caret {
-  font-size: 20px;
-}
-.group-toggle-label {
+.group-chevron {
+  display: flex;
+  flex-shrink: 0;
   margin-left: auto;
-  white-space: nowrap;
-  font-size: 13px;
+  color: var(--muted);
 }
 .download-row.selectable-row {
   grid-template-columns: 24px minmax(0, 1fr) 90px 160px auto;

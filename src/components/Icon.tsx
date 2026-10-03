@@ -8,6 +8,8 @@ export type IconName =
   | 'phone'
   | 'plus'
   | 'arrow'
+  | 'chevron-down'
+  | 'chevron-up'
   | 'close'
   | 'check'
   | 'trash'
@@ -54,6 +56,8 @@ const paths: Record<IconName, ReactNode> = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
+  'chevron-up': <path d="m6 15 6-6 6 6" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
   check: <path d="m5 12 4 4L19 6" />,
   trash: (
