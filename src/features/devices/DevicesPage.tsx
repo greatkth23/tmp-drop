@@ -227,8 +227,8 @@ export function DevicesPage({
                   onFocus={(e) => e.target.select()}
                 />
                 <p className="help">
-                  설치 파일은 제공하지 않습니다. 단축어 API 연결 안내에 따라 직접 설정해야 하며
-                  iPhone 실기기 검증은 남아 있습니다.
+                  설치 파일은 제공하지 않습니다. 아래 안내에 따라 설정하세요. 묶음 ID를 추가한
+                  버전은 iPhone에서 확인이 필요합니다.
                 </p>
                 <a className="text-link" href="/shortcuts" target="_blank" rel="noreferrer">
                   단축어 설정 안내 열기

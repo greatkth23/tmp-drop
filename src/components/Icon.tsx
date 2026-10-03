@@ -3,6 +3,7 @@ export type IconName =
   | 'download'
   | 'upload'
   | 'file'
+  | 'folder'
   | 'lock'
   | 'device'
   | 'phone'
@@ -36,6 +37,7 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M14 3v5h5M8 13h8M8 17h5" />
     </>
   ),
+  folder: <path d="M3 7V5h6l2 2h10v13H3z" />,
   lock: (
     <>
       <rect x="5" y="10" width="14" height="11" rx="3" />

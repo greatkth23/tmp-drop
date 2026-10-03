@@ -1,3 +1,4 @@
+import { canPreviewImage } from '../../../shared/preview';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FileSummary } from '../../../shared/contracts';
 import { Icon } from '../../components/Icon';
@@ -35,119 +36,185 @@ export function SelectBox({
     if (ref.current) ref.current.indeterminate = !!mixed;
   }, [mixed]);
   return (
-    <input
-      ref={ref}
-      className="file-check"
-      type="checkbox"
-      aria-label={label}
-      checked={checked}
-      onChange={onChange}
-      disabled={disabled}
-    />
+    <label className="file-select">
+      <input
+        ref={ref}
+        className="file-check"
+        type="checkbox"
+        aria-label={label}
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+      />
+    </label>
   );
 }
-function FileGroup({
-  files,
+interface GroupedFilesProps {
+  files: FileSummary[];
+  selected: Set<string>;
+  toggle: (ids: string[]) => void;
+  onDelete: (file: FileSummary) => void;
+  onDownloadGroup: (files: FileSummary[]) => void;
+  onDeleteGroup: (files: FileSummary[]) => void;
+  zipping: boolean;
+  now: number;
+  connected: boolean;
+}
+function Expiry({
+  expiresAt,
+  now,
+  group = false,
+}: {
+  expiresAt: number;
+  now: number;
+  group?: boolean;
+}) {
+  return (
+    <div className={`expiry ${expiresAt - now < 3600_000 ? 'soon' : ''}`}>
+      <span>
+        <Icon name="clock" size={14} />
+        {group ? '첫 만료 · ' : ''}
+        {left(expiresAt, now)}
+      </span>
+      <small>{dateTime(expiresAt)}</small>
+    </div>
+  );
+}
+function FileRow({
+  file: f,
+  nested = false,
   selected,
   toggle,
   onDelete,
   now,
   connected,
-}: {
-  files: FileSummary[];
-  selected: Set<string>;
-  toggle: (ids: string[]) => void;
-  onDelete: (file: FileSummary) => void;
-  now: number;
-  connected: boolean;
-}) {
+}: Omit<GroupedFilesProps, 'files'> & { file: FileSummary; nested?: boolean }) {
+  return (
+    <article
+      className={`download-row selectable-row ${nested ? 'nested-file-row' : 'top-level-row'}`}
+    >
+      <span className="group-toggle-space" aria-hidden="true" />
+      <FileIdentity
+        name={f.filename}
+        detail={ago(f.completedAt, now)}
+        previewSrc={
+          canPreviewImage(f.filename, f.sizeBytes) ? `/api/files/${f.id}/preview` : undefined
+        }
+      />
+      <div className="file-details">
+        <span className="download-size">{bytes(f.sizeBytes)}</span>
+        <Expiry expiresAt={f.expiresAt} now={now} />
+      </div>
+      <div className="download-actions">
+        <a
+          className="btn secondary small"
+          href={`/api/files/${f.id}/download`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${f.filename} 다운로드`}
+        >
+          <Icon name="download" size={18} />
+          다운로드
+        </a>
+        <button
+          className="btn quiet small danger-text"
+          disabled={!connected}
+          aria-label={`${f.filename} 삭제`}
+          onClick={() => onDelete(f)}
+        >
+          <Icon name="trash" size={17} />
+          삭제
+        </button>
+      </div>
+      <SelectBox
+        label={`${f.filename} 선택`}
+        checked={selected.has(f.id)}
+        onChange={() => toggle([f.id])}
+      />
+    </article>
+  );
+}
+function FileGroup(props: GroupedFilesProps) {
+  const { files, selected, toggle, onDownloadGroup, onDeleteGroup, zipping, now, connected } =
+    props;
   const [open, setOpen] = useState(false),
     id = useId();
-  const multiple = files.length > 1;
-  const count = files.filter((f) => selected.has(f.id)).length,
-    latest = Math.max(...files.map((f) => f.completedAt));
+  if (files.length === 1)
+    return (
+      <section className="file-group">
+        <FileRow {...props} file={files[0]} />
+      </section>
+    );
+  const count = files.filter((f) => selected.has(f.id)).length;
+  const latest = Math.max(...files.map((f) => f.completedAt));
+  const expiresAt = Math.min(...files.map((f) => f.expiresAt));
+  const name = dateTime(latest) + ' 업로드 묶음';
   return (
     <section className="file-group">
-      {multiple && (
-        <div className="group-head">
-          <SelectBox
-            label={`이 묶음 ${files.length}개 파일 전체 선택`}
-            checked={count === files.length}
-            mixed={count > 0 && count < files.length}
-            onChange={() => toggle(files.map((f) => f.id))}
-          />
+      <div
+        className="download-row selectable-row top-level-row group-head"
+        onClick={(event) => {
+          if (event.target instanceof Element && event.target.closest('button, a, input, label'))
+            return;
+          setOpen((previous) => !previous);
+        }}
+      >
+        <button
+          className="group-toggle icon-button"
+          aria-label={`${name} ${files.length}개 파일 ${open ? '접기' : '펼치기'}`}
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={() => setOpen(!open)}
+        >
+          <Icon name={open ? 'chevron-up' : 'chevron-down'} size={22} />
+        </button>
+        <FileIdentity
+          name={name}
+          icon="folder"
+          detail={`${files.length}개 파일 · ${ago(latest, now)}${count ? ' · ' + count + '개 선택' : ''}`}
+        />
+        <div className="file-details">
+          <span className="download-size">
+            {bytes(files.reduce((sum, f) => sum + f.sizeBytes, 0))}
+          </span>
+          <Expiry expiresAt={expiresAt} now={now} group />
+        </div>
+        <div className="download-actions">
           <button
-            className="group-toggle"
-            aria-label={`${dateTime(latest)} 업로드 묶음 ${files.length}개 파일 ${open ? '접기' : '펼치기'}`}
-            aria-expanded={open}
-            aria-controls={id}
-            onClick={() => setOpen(!open)}
+            className="btn secondary small"
+            disabled={!connected || zipping}
+            aria-label={`${name} ${files.length}개 파일 ZIP 다운로드`}
+            onClick={() => onDownloadGroup(files)}
           >
-            <span>
-              <strong>{dateTime(latest)} 업로드</strong>
-              <small>
-                {files.length}개 · {bytes(files.reduce((s, f) => s + f.sizeBytes, 0))}
-                {count > 0 ? ` · ${count}개 선택` : ''}
-              </small>
-            </span>
-            <span className="group-chevron">
-              <Icon name={open ? 'chevron-up' : 'chevron-down'} size={22} />
-            </span>
+            <Icon name="download" size={18} />
+            다운로드
+          </button>
+          <button
+            className="btn quiet small danger-text"
+            disabled={!connected}
+            aria-label={`${name} ${files.length}개 파일 삭제`}
+            onClick={() => onDeleteGroup(files)}
+          >
+            <Icon name="trash" size={17} />
+            삭제
           </button>
         </div>
-      )}
-      <div id={id} hidden={multiple && !open}>
+        <SelectBox
+          label={`이 묶음 ${files.length}개 파일 전체 선택`}
+          checked={count === files.length}
+          mixed={count > 0 && count < files.length}
+          onChange={() => toggle(files.map((f) => f.id))}
+        />
+      </div>
+      <div id={id} className="group-children" hidden={!open}>
         {files.map((f) => (
-          <article className="download-row selectable-row" key={f.id}>
-            <SelectBox
-              label={`${f.filename} 선택`}
-              checked={selected.has(f.id)}
-              onChange={() => toggle([f.id])}
-            />
-            <FileIdentity name={f.filename} detail={ago(f.completedAt, now)} />
-            <span className="download-size">{bytes(f.sizeBytes)}</span>
-            <div className={`expiry ${f.expiresAt - now < 3600_000 ? 'soon' : ''}`}>
-              <span>
-                <Icon name="clock" size={14} />
-                {left(f.expiresAt, now)}
-              </span>
-              <small>{dateTime(f.expiresAt)}</small>
-            </div>
-            <div className="download-actions">
-              <a
-                className="btn primary small"
-                href={`/api/files/${f.id}/download`}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`${f.filename} 다운로드`}
-              >
-                <Icon name="download" size={18} />
-                다운로드
-              </a>
-              <button
-                className="btn quiet small danger-text"
-                disabled={!connected}
-                aria-label={`${f.filename} 삭제`}
-                onClick={() => onDelete(f)}
-              >
-                <Icon name="trash" size={17} />
-                삭제
-              </button>
-            </div>
-          </article>
+          <FileRow key={f.id} {...props} file={f} nested />
         ))}
       </div>
     </section>
   );
 }
-export function GroupedFiles(props: {
-  files: FileSummary[];
-  selected: Set<string>;
-  toggle: (ids: string[]) => void;
-  onDelete: (file: FileSummary) => void;
-  now: number;
-  connected: boolean;
-}) {
+export function GroupedFiles(props: GroupedFilesProps) {
   return (
     <>
       {groupFiles(props.files).map(([key, files]) => (

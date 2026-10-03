@@ -1,6 +1,7 @@
+import { FileThumbnail } from './FileThumbnail';
 import { useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 export function ErrorText({ error, id }: { error?: string; id?: string }) {
   return error ? (
     <p className="error" role="alert" id={id}>
@@ -28,12 +29,22 @@ export function PageHead({
     </div>
   );
 }
-export function FileIdentity({ name, detail }: { name: string; detail?: ReactNode }) {
+export function FileIdentity({
+  name,
+  detail,
+  icon = 'file',
+  previewSrc,
+  previewFile,
+}: {
+  name: string;
+  detail?: ReactNode;
+  icon?: IconName;
+  previewSrc?: string;
+  previewFile?: File;
+}) {
   return (
     <div className="file-identity">
-      <span className="file-icon">
-        <Icon name="file" size={24} />
-      </span>
+      <FileThumbnail src={previewSrc} file={previewFile} icon={icon} />
       <div className="file-info">
         <strong className="filename">{name}</strong>
         {detail && <span className="filemeta">{detail}</span>}

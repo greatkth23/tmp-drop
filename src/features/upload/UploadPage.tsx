@@ -126,6 +126,24 @@ export function UploadPage({
               )}
             </div>
           </div>
+          {pending.length > 0 && (
+            <div className="start-bar">
+              <div>
+                <strong>
+                  {pending.length}개 파일 · {bytes(pending.reduce((sum, i) => sum + i.size, 0))}
+                </strong>
+                <span>보관 기간을 확인한 뒤 시작하세요.</span>
+              </div>
+              <button
+                className="btn primary"
+                disabled={!canUpload}
+                onClick={() => engine.start(pending.map((i) => i.key))}
+              >
+                {pending.length}개 파일 업로드 시작
+                <Icon name="arrow" />
+              </button>
+            </div>
+          )}
           <section
             className={`composer panel ${queue.length ? 'compact' : ''} ${drag ? 'drag' : ''}`}
             onDragOver={(e) => {
@@ -211,24 +229,6 @@ export function UploadPage({
                   />
                 ))}
               </div>
-              {pending.length > 0 && (
-                <div className="start-bar">
-                  <div>
-                    <strong>
-                      {pending.length}개 파일 · {bytes(pending.reduce((sum, i) => sum + i.size, 0))}
-                    </strong>
-                    <span>보관 기간을 확인한 뒤 시작하세요.</span>
-                  </div>
-                  <button
-                    className="btn accent"
-                    disabled={!canUpload}
-                    onClick={() => engine.start(pending.map((i) => i.key))}
-                  >
-                    {pending.length}개 파일 업로드 시작
-                    <Icon name="arrow" />
-                  </button>
-                </div>
-              )}
             </>
           )}
           {active.length > 0 && (
@@ -311,6 +311,7 @@ function UploadItem({
       <div className="file-top">
         <FileIdentity
           name={item.name}
+          previewFile={item.sourceFile}
           detail={
             <>
               {bytes(item.size)} · 완료 후 {retentionText(item.retention)} 보관

@@ -143,13 +143,18 @@ describe('upload batches and selected file actions', () => {
     await b.status();
     return b;
   }
-  async function ready(b: Browser, batchKey?: string, filename = '사진.png') {
+  async function ready(
+    b: Browser,
+    batchKey?: string,
+    filename = '사진.png',
+    data: Uint8Array = new Uint8Array([1, 2, 3]),
+  ) {
     const res = await b.request(
       '/api/uploads',
       'POST',
       {
         filename,
-        sizeBytes: 3,
+        sizeBytes: data.length,
         mime: 'application/octet-stream',
         retentionSeconds: 86400,
         ...(batchKey ? { batchKey } : {}),
@@ -159,12 +164,56 @@ describe('upload batches and selected file actions', () => {
     expect(res.status).toBe(201);
     const u = await res.json<UploadCreated>(),
       h = { Authorization: 'Upload ' + u.capability };
-    expect(
-      (await b.request(`/api/uploads/${u.id}/parts/1`, 'PUT', new Uint8Array([1, 2, 3]), h)).status,
-    ).toBe(200);
+    expect((await b.request(`/api/uploads/${u.id}/parts/1`, 'PUT', data, h)).status).toBe(200);
     expect((await b.request(`/api/uploads/${u.id}/complete`, 'POST', {}, h)).status).toBe(200);
     return (await env.DB.prepare('SELECT * FROM files WHERE id=?').bind(u.id).first<FileRow>())!;
   }
+  it('serves sniffed raster previews only to an unlocked download session without caching', async () => {
+    const b = await start();
+    const png = Uint8Array.from(
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV1sAAAAASUVORK5CYII=',
+      ),
+      (c) => c.charCodeAt(0),
+    );
+    const file = await ready(b, undefined, 'photo.png', png);
+    const path = '/api/files/' + file.id + '/preview';
+    expect((await new Browser().request(path)).status).toBe(401);
+    const preview = await b.request(path);
+    expect(preview.status).toBe(200);
+    expect(preview.headers.get('Content-Type')).toBe('image/png');
+    expect(preview.headers.get('Cache-Control')).toContain('no-store');
+    expect(preview.headers.get('Content-Disposition')).toBe('inline');
+    expect(preview.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(new Uint8Array(await preview.arrayBuffer())).toEqual(png);
+    await b.request('/api/auth/logout', 'POST', { scope: 'download' });
+    expect((await b.request(path)).status).toBe(401);
+  });
+  it('rejects disguised active content, oversized, expired, and deleted image previews', async () => {
+    const b = await start();
+    const file = await ready(
+      b,
+      undefined,
+      'pretend.png',
+      new TextEncoder().encode(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+      ),
+    );
+    const path = '/api/files/' + file.id + '/preview';
+    expect((await b.request(path)).status).toBe(415);
+    await env.DB.prepare('UPDATE files SET size_bytes=?1,actual_size_bytes=?1 WHERE id=?2')
+      .bind(10 * 1024 * 1024 + 1, file.id)
+      .run();
+    expect((await b.request(path)).status).toBe(415);
+    await env.DB.prepare('UPDATE files SET expires_at=? WHERE id=?')
+      .bind(Date.now() - 1, file.id)
+      .run();
+    expect((await b.request(path)).status).toBe(404);
+    await env.DB.prepare("UPDATE files SET state='DELETED',expires_at=? WHERE id=?")
+      .bind(Date.now() + 60000, file.id)
+      .run();
+    expect((await b.request(path)).status).toBe(404);
+  });
   it('keeps a batch together across group pages and retains standalone legacy files', async () => {
     const b = await start();
     const a = await ready(b, 'together'),

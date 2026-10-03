@@ -14,6 +14,7 @@ export type QueueState =
   | 'cancelled'
   | 'failed';
 export interface QueueView {
+  sourceFile?: File;
   key: string;
   name: string;
   size: number;
@@ -83,6 +84,7 @@ export class UploadEngine {
   private emit() {
     this.snapshot = this.items.map(
       ({
+        file,
         key,
         name,
         size,
@@ -99,6 +101,7 @@ export class UploadEngine {
         resultDeleted,
         result,
       }) => ({
+        sourceFile: file,
         key,
         name,
         size,

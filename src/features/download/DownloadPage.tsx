@@ -172,13 +172,19 @@ export function DownloadPage({
     }
     setSelected(next);
   };
-  const downloadSelected = async () => {
-    if (!chosen.length || zipping) return;
+  const downloadSelected = async (targets = chosen) => {
+    if (!targets.length || zipping) return;
+    if (targets.length > 100) {
+      setError(
+        '한 번에 최대 100개 파일을 다운로드할 수 있습니다. 묶음을 펼쳐 파일을 선택해 주세요.',
+      );
+      return;
+    }
     setZipping(true);
     setError('');
     try {
       const result = await mutate<{ url: string }>('/api/files/archive', {
-        ids: chosen.map((f) => f.id),
+        ids: targets.map((f) => f.id),
       });
       const anchor = document.createElement('a');
       anchor.href = result.url;
@@ -186,7 +192,7 @@ export function DownloadPage({
       document.body.append(anchor);
       anchor.click();
       anchor.remove();
-      setNotice(`${chosen.length}개 파일의 ZIP 다운로드를 요청했습니다.`);
+      setNotice(`${targets.length}개 파일의 ZIP 다운로드를 요청했습니다.`);
     } catch (e) {
       setError(message(e));
       await refresh();
@@ -268,7 +274,7 @@ export function DownloadPage({
                 <Icon name="lock" />
               </span>
               <div>
-                <strong>파일 받기 접근이 열려 있어요.</strong>
+                <strong>파일 받기 허용됨</strong>
                 <span>다른 사람이 쓰는 PC라면 작업 후 잠가주세요.</span>
               </div>
             </div>
@@ -307,15 +313,6 @@ export function DownloadPage({
           )}
           {visible.length > 0 && (
             <div className="selection-bar">
-              <label className="checkbox">
-                <SelectBox
-                  label="불러온 파일 전체 선택"
-                  checked={chosen.length === visible.length}
-                  mixed={chosen.length > 0 && chosen.length < visible.length}
-                  onChange={() => toggle(visible.map((f) => f.id))}
-                />
-                <span>불러온 파일 전체 선택</span>
-              </label>
               <span role="status">
                 {chosen.length}개 선택 · {bytes(chosen.reduce((sum, f) => sum + f.sizeBytes, 0))}
               </span>
@@ -339,6 +336,15 @@ export function DownloadPage({
                   <Icon name="trash" size={17} />
                   선택 삭제
                 </button>
+              </div>
+              <div className="selection-all">
+                <span>불러온 파일 전체 선택</span>
+                <SelectBox
+                  label="불러온 파일 전체 선택"
+                  checked={chosen.length === visible.length}
+                  mixed={chosen.length > 0 && chosen.length < visible.length}
+                  onChange={() => toggle(visible.map((f) => f.id))}
+                />
               </div>
             </div>
           )}
@@ -380,6 +386,18 @@ export function DownloadPage({
                   setNotice('');
                   setDeleting(f);
                 }}
+                onDownloadGroup={(targets) => void downloadSelected(targets)}
+                onDeleteGroup={(targets) => {
+                  if (targets.length > 100) {
+                    setError(
+                      '한 번에 최대 100개 파일을 삭제할 수 있습니다. 묶음을 펼쳐 파일을 선택해 주세요.',
+                    );
+                    return;
+                  }
+                  setNotice('');
+                  setBulkDeleting(targets);
+                }}
+                zipping={zipping}
                 now={now}
                 connected={connected}
               />
@@ -415,7 +433,12 @@ export function DownloadPage({
             const failed = results.filter((r) => r.state === 'FAILED');
             removed.forEach((id) => engine.markDeleted(id));
             setFiles((old) => old.filter((f) => !removed.includes(f.id)));
-            setSelected(new Set(failed.map((r) => r.id)));
+            setSelected(
+              (old) =>
+                new Set(
+                  [...old].filter((id) => !removed.includes(id)).concat(failed.map((r) => r.id)),
+                ),
+            );
             setNotice(
               `${results.filter((r) => r.state === 'DELETED').length}개 삭제${results.some((r) => r.state === 'PENDING') ? ' · 일부 파일은 저장소 정리 중' : ''}${failed.length ? ` · ${failed.length}개 삭제 실패` : ''}`,
             );

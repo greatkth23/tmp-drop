@@ -1,3 +1,4 @@
+import { filePreview } from './preview';
 import { Hono } from 'hono';
 import { fileActions, selectionTarget } from './file-actions';
 import { z } from 'zod';
@@ -315,6 +316,7 @@ app.delete('/api/files/:id', async (c) => {
   await audit(c, 'file_deleted', id);
   return c.json({ state: 'DELETED' });
 });
+app.get('/api/files/:id/preview', filePreview);
 app.get('/api/files/:id/download', async (c) => {
   const d = (await downloadSession(c))!;
   const file = await c.env.DB.prepare(
