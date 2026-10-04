@@ -2,7 +2,7 @@
   --bg: #f8f8f8;
   --page-bg: #fff;
   --surface: #fff;
-  --surface-nested: #fafbfc;
+  --surface-nested: color-mix(in srgb, var(--bg) 50%, var(--surface));
   --ink: #111;
   --muted: #707070;
   --surface-muted: #757575;
