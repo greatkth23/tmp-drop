@@ -94,7 +94,6 @@ function FileRow({
     <article
       className={`download-row selectable-row ${nested ? 'nested-file-row' : 'top-level-row'}`}
     >
-      <span className="group-toggle-space" aria-hidden="true" />
       <FileIdentity
         name={f.filename}
         detail={ago(f.completedAt, now)}
@@ -160,20 +159,23 @@ function FileGroup(props: GroupedFilesProps) {
           setOpen((previous) => !previous);
         }}
       >
-        <button
-          className="group-toggle icon-button"
-          aria-label={`${name} ${files.length}개 파일 ${open ? '접기' : '펼치기'}`}
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={() => setOpen(!open)}
-        >
-          <Icon name={open ? 'chevron-up' : 'chevron-down'} size={22} />
-        </button>
-        <FileIdentity
-          name={name}
-          icon="folder"
-          detail={`${files.length}개 파일 · ${ago(latest, now)}${count ? ' · ' + count + '개 선택' : ''}`}
-        />
+        <div className="file-identity">
+          <button
+            className="file-icon group-folder-toggle"
+            aria-label={`${name} ${files.length}개 파일 ${open ? '접기' : '펼치기'}`}
+            aria-expanded={open}
+            aria-controls={id}
+            onClick={() => setOpen(!open)}
+          >
+            <Icon name={open ? 'folder-open' : 'folder'} size={24} />
+          </button>
+          <div className="file-info">
+            <strong className="filename">{name}</strong>
+            <span className="filemeta">
+              {`${files.length}개 파일 · ${ago(latest, now)}${count ? ' · ' + count + '개 선택' : ''}`}
+            </span>
+          </div>
+        </div>
         <div className="file-details">
           <span className="download-size">
             {bytes(files.reduce((sum, f) => sum + f.sizeBytes, 0))}

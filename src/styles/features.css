@@ -888,16 +888,16 @@ footer > span:first-child {
   border-radius: 0;
 }
 .download-row.selectable-row {
-  grid-template-columns: 44px minmax(0, 1fr) 260px 196px 44px;
+  grid-template-columns: minmax(0, 1fr) 260px 196px 44px;
   gap: 12px;
   min-height: 80px;
   padding: 12px 16px;
 }
 .selectable-row > .file-identity {
-  grid-column: 2;
+  grid-column: 1;
 }
 .file-details {
-  grid-column: 3;
+  grid-column: 2;
   display: grid;
   grid-template-columns: 80px minmax(0, 1fr);
   align-items: center;
@@ -910,27 +910,26 @@ footer > span:first-child {
   padding-left: 0;
 }
 .selectable-row > .download-actions {
-  grid-column: 4;
+  grid-column: 3;
   grid-row: auto;
   padding-left: 0;
 }
 .selectable-row > .file-select {
-  grid-column: 5;
+  grid-column: 4;
 }
 .top-level-row {
   background: var(--surface);
 }
-.group-toggle,
-.group-toggle-space {
-  grid-column: 1;
-  grid-row: 1;
-  width: 44px;
-}
-.group-toggle {
+.group-folder-toggle {
+  min-height: 44px;
+  border: 0;
+  padding: 0;
   color: var(--ink);
+  cursor: pointer;
+  overflow: visible;
 }
 .group-children {
-  background: var(--bg);
+  background: var(--surface-nested);
   border-top: 1px solid var(--line);
 }
 .group-children .filemeta,
@@ -970,19 +969,19 @@ footer > span:first-child {
 
 @media (max-width: 999px) {
   .download-row.selectable-row {
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) 44px;
     gap: 8px 12px;
   }
   .selectable-row > .file-identity {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
   }
   .selectable-row > .file-select {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
   }
   .file-details {
-    grid-column: 2 / -1;
+    grid-column: 1 / -1;
     grid-row: 2;
     display: flex;
     flex-wrap: wrap;
@@ -998,7 +997,7 @@ footer > span:first-child {
     margin-top: 0;
   }
   .selectable-row > .download-actions {
-    grid-column: 2 / -1;
+    grid-column: 1 / -1;
     grid-row: 3;
     justify-content: flex-start;
     flex-wrap: wrap;
