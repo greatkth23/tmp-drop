@@ -53,10 +53,6 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
             <p>전송이 끝나면 다른 기기에서 이 사이트의 파일 받기를 열어 다운로드하세요.</p>
           </li>
         </ol>
-        <p className="shortcut-usage-note">
-          첫 사용은 작은 파일로 시험하세요. 전송이 끝날 때까지 단축어를 열어두고, 개인 토큰을 넣은
-          단축어는 공유하지 마세요.
-        </p>
       </section>
     </>
   );
