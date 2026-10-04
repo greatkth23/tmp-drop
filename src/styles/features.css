@@ -797,53 +797,63 @@ footer > span:first-child {
   letter-spacing: 0.08em;
   margin-bottom: 16px;
 }
-.banner {
+.shortcut-install {
   background: var(--accent);
-  border-radius: 20px;
-  padding: 24px;
-  margin-bottom: 24px;
-}
-.banner p {
-  margin-bottom: 0;
-}
-.shortcut-guide {
-  padding: 24px 0;
-  border-top: 1px solid var(--line);
-  margin-bottom: 24px;
-}
-.shortcut-guide h2 {
-  margin-top: 0;
-}
-.shortcut-guide h3 {
-  font-size: 18px;
-}
-.shortcut-guide li {
-  padding-left: 8px;
-  margin-bottom: 24px;
-}
-.shortcut-guide ol,
-.shortcut-guide ul {
-  padding-left: 24px;
-}
-.shortcut-example {
-  background: var(--bg);
   border-radius: var(--radius-card);
-  padding: 16px;
-  margin: 16px 0;
+  padding: var(--space-8);
+  margin-bottom: var(--space-8);
 }
-.shortcut-example .section-head {
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
+.shortcut-install h2 {
+  margin: 0 0 var(--space-3);
 }
-.shortcut-example pre {
-  font:
-    13px/1.7 ui-monospace,
-    Consolas,
-    monospace;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.shortcut-install p {
+  max-width: 64ch;
   margin: 0;
+  line-height: 1.6;
+}
+.shortcut-install .btn {
+  margin-top: var(--space-6);
+}
+.shortcut-usage {
+  padding: var(--space-6) 0;
+}
+.shortcut-usage h2 {
+  margin-bottom: var(--space-6);
+}
+.shortcut-usage ol {
+  margin: 0;
+  padding-left: var(--space-6);
+  max-width: 72ch;
+}
+.shortcut-usage li {
+  padding-left: var(--space-2);
+}
+.shortcut-usage li + li {
+  margin-top: var(--space-6);
+}
+.shortcut-usage h3 {
+  font-size: 18px;
+  margin: 0 0 var(--space-2);
+}
+.shortcut-usage li p {
+  margin: 0;
+  line-height: 1.6;
+}
+.shortcut-usage-note {
+  margin: var(--space-6) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 72ch;
+}
+@media (max-width: 729px) {
+  .shortcut-install {
+    padding: var(--space-6);
+  }
+  .shortcut-install h2 {
+    font-size: 20px;
+  }
 }
 
 /* Selection and file rows share an open surface; tint indicates interaction only. */
