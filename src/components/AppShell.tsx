@@ -63,7 +63,7 @@ export function AppShell({
       <footer>
         <span>
           <Icon name="clock" size={16} />
-          필요한 동안만 보관합니다.
+          업로드가 완료된 파일만 표시됩니다. 만료 후에는 새로 받을 수 없습니다.
         </span>
         <span>{local ? '로컬 개발 환경' : 'Temporary Drop'} · 완료 후 1시간에서 3일까지</span>
       </footer>

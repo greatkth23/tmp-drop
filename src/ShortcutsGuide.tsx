@@ -73,7 +73,7 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
         <div>
           <div className="eyebrow">IPHONE / SHORTCUTS</div>
           <h1 tabIndex={-1}>아이폰에서 파일 보내기</h1>
-          <p>iOS 27.0.1에서 직접 만들 단축어의 설정 순서입니다.</p>
+          <p>공유된 단축어를 설치하고 업로드 토큰을 설정하세요.</p>
         </div>
         <a
           className="btn primary"
@@ -90,16 +90,24 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
       </div>
       <div className="banner">
         <div>
-          <strong>현재는 직접 제작하는 방식입니다.</strong>
+          <strong>Temporary Drop 단축어 설치</strong>
           <p>
-            설치용 단축어 파일은 아직 제공하지 않습니다. 기존 단축어의 아이폰 업로드는 확인했습니다.
-            묶음 ID를 추가한 버전은 아이폰에서 다시 확인해 주세요. 먼저 작은 파일로 시험하고 전송이
-            끝날 때까지 단축어를 화면에 유지하세요.
+            아이폰에서 공유 링크를 열어 단축어를 추가하세요. 내 기기에서 발급한 개인 업로드 토큰을
+            단축어의 기기 토큰에 입력한 뒤, 파일 앱의 작은 파일 하나로 먼저 시험하세요.
           </p>
+          <a
+            className="btn secondary"
+            href="https://www.icloud.com/shortcuts/f1355a8b8e7b4ae58c6f1d286fe60729"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            iCloud에서 단축어 열기
+          </a>
         </div>
       </div>
       <section className="panel sidebar-card shortcut-guide">
         <h2>한 번에 보낸 파일을 묶음으로 표시하기</h2>
+        <p>단축어를 직접 만들거나 묶음 동작을 수정할 때 참고하세요.</p>
         <p>
           기존 단축어의 각 항목 반복하기 바로 위에 임의의 숫자 액션 3개(1~2147483647)를 추가하세요.
           텍스트 액션에서 batch-숫자1-숫자2-숫자3으로 연결하고 묶음 ID 변수로 저장합니다.
@@ -115,10 +123,10 @@ export function ShortcutsGuide({ navigate }: { navigate: (page: Page) => void })
         </p>
       </section>
       <section className="panel sidebar-card shortcut-guide">
-        <h2>단축어 액션 설정</h2>
+        <h2>단축어 액션 확인·수정</h2>
         <p>
-          변수는 단축어 편집기에서 선택해 연결하세요. 아래의 중괄호 이름을 주소에 그대로 넣지
-          마세요.
+          아래 단계는 직접 만들거나 설치한 단축어를 수정할 때 참고하세요. 변수는 단축어 편집기에서
+          선택해 연결하고, 중괄호 이름을 주소에 그대로 넣지 마세요.
         </p>
         <ol>
           {steps.map(([title, body], index) => (

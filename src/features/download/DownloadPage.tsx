@@ -426,10 +426,6 @@ export function DownloadPage({
               <Icon name="plus" size={18} />
             </button>
           )}
-          <p className="list-foot">
-            <Icon name="clock" size={16} />
-            업로드가 완료된 파일만 표시됩니다. 만료 후에는 새로 받을 수 없습니다.
-          </p>
         </>
       )}
       {bulkDeleting && unlocked && (

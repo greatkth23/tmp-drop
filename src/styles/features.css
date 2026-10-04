@@ -370,8 +370,7 @@ main:focus {
 .start-bar .btn:focus-visible {
   outline-color: var(--ink);
 }
-.transfer-help,
-.list-foot {
+.transfer-help {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -379,8 +378,7 @@ main:focus {
   font-size: 12px;
   color: var(--muted);
 }
-.transfer-help svg,
-.list-foot svg {
+.transfer-help svg {
   margin-top: 1px;
 }
 .table-head,

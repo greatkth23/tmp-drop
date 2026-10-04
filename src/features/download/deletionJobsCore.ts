@@ -38,7 +38,7 @@ export function createDeletionJobs(send: Send, markDeleted: (id: string) => void
           pending: true,
           removed: [],
           error: '',
-          text: `${files.length}개 파일 삭제 요청 중… 다른 화면을 이용해도 됩니다.`,
+          text: `${files.length}개 파일 삭제 요청 중…`,
         },
       ];
       emit();
