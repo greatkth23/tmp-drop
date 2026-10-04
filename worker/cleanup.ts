@@ -2,6 +2,22 @@ import type { AppContext, FileRow } from './types';
 import { POLICY } from '../shared/contracts';
 import { recoverFinalization } from './uploads';
 import { recoverFileParts, PART_LEASE_MS } from './recovery';
+// Persist removal before acknowledging it. Cron recovers DELETING rows even if
+// waitUntil is interrupted, and the existing deletion lease prevents double work.
+export async function enqueueDeletion(c: AppContext, file: FileRow) {
+  const claimed = await c.env.DB.prepare(
+    "UPDATE files SET state='DELETING' WHERE id=? AND state IN('READY','EXPIRED','DELETING') RETURNING id",
+  )
+    .bind(file.id)
+    .first();
+  if (!claimed) return false;
+  c.executionCtx.waitUntil(
+    deleteStoredFile(c, file).catch(() => {
+      // The durable DELETING row remains eligible for scheduled cleanup.
+    }),
+  );
+  return true;
+}
 // Share the lease and retry path between immediate deletion and scheduled cleanup.
 export async function deleteStoredFile(
   c: AppContext,
@@ -128,6 +144,7 @@ export async function cleanup(
     );
   }
   await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM download_archives WHERE expires_at<?').bind(now),
     c.env.DB.prepare('DELETE FROM auth_attempts WHERE attempted_at<?').bind(now - 600_000),
     c.env.DB.prepare('DELETE FROM totp_uses WHERE used_at<?').bind(now - 300_000),
     c.env.DB.prepare('DELETE FROM admin_grants WHERE expires_at<?').bind(now),
