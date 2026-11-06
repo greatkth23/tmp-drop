@@ -9,6 +9,7 @@ export interface Principal {
   expiresAt: number | null;
 }
 export interface FileRow {
+  batch_id?: string | null;
   id: string;
   mode: 'web_multipart' | 'shortcut_put';
   state: FileState;

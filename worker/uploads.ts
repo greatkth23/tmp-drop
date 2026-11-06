@@ -18,6 +18,7 @@ export function summary(file: FileRow): FileSummary | null {
   return file.state === 'READY' && file.completed_at && file.expires_at
     ? {
         id: file.id,
+        batchId: file.batch_id || null,
         filename: file.filename,
         sizeBytes: file.size_bytes,
         completedAt: file.completed_at,
@@ -97,6 +98,7 @@ export async function createUpload(
     serverNow: now,
   };
   const file: FileRow = {
+    batch_id: body.batchKey ? await hash(`${p.kind}:${p.id}:${body.batchKey}`) : null,
     id,
     mode: shortcut ? 'shortcut_put' : 'web_multipart',
     state: 'CREATING',
@@ -127,7 +129,7 @@ export async function createUpload(
   try {
     await c.env.DB.batch([
       c.env.DB.prepare(
-        `INSERT INTO files(id,mode,state,filename,declared_mime,size_bytes,retention_seconds,final_key,staging_key,capability_hash,capability_expires_at,owner_device_id,owner_session_id,created_at,last_activity_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        `INSERT INTO files(id,mode,state,filename,declared_mime,size_bytes,retention_seconds,final_key,staging_key,capability_hash,capability_expires_at,owner_device_id,owner_session_id,created_at,last_activity_at,batch_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       ).bind(
         id,
         file.mode,
@@ -144,6 +146,7 @@ export async function createUpload(
         file.owner_session_id,
         now,
         now,
+        file.batch_id,
       ),
       c.env.DB.prepare(
         'INSERT INTO idempotency_keys(principal_id,key_hash,request_hash,file_id,expires_at) VALUES(?,?,?,?,?)',

@@ -1,0 +1,48 @@
+{
+  "task": "Reduce heavy repetitive surfaces across Temporary Drop, retain Assemble-derived hierarchy, move disclosure left and selection right",
+  "routes": ["/", "/upload", "/devices", "/shortcuts"],
+  "owner": "main",
+  "authority": [
+    "user attached Assemble guide",
+    "existing docs/planning/05-Assemble-디자인-구현-상세계획.md",
+    "latest user: Pretendard and white page, left disclosure and right checkbox"
+  ],
+  "protected": [
+    "PIN and authenticator access",
+    "upload retention and progress",
+    "download exact selection ZIP",
+    "single and batch download/delete",
+    "delete confirmation",
+    "whole-header disclosure excluding controls",
+    "single files never collapsible",
+    "expiry and file size",
+    "select all and mixed state",
+    "device controls"
+  ],
+  "allowed_control_delta": 0,
+  "visual_equity": {
+    "preserve": [
+      "white outer page",
+      "Pretendard",
+      "black primary CTA",
+      "limited lime accent",
+      "same hierarchy single and batch"
+    ],
+    "replace": [
+      "112px minimum rows",
+      "repeated gray blocks",
+      "overlarge file icons",
+      "four-stack mobile rows"
+    ]
+  },
+  "evidence": "production source and prior same-route UI checks; current CSS repeats gray, 24px row padding and 56px icons",
+  "unknown": "mobile rendering after new changes",
+  "advisory_budget": "max 3 findings per specialist, read only",
+  "acceptance": [
+    "all controls preserved",
+    "no page overflow at 320,390 and desktop",
+    "left chevron right checkbox",
+    "visible keyboard focus and independent action events",
+    "npm check and production verification"
+  ]
+}
